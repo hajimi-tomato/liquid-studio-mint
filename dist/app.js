@@ -1,0 +1,231 @@
+const $ = (id) => document.getElementById(id);
+const icons = {
+ droplet:'<path d="M12 3c-2.4 4.5-7 8.5-7 12a7 7 0 0 0 14 0c0-3.5-4.6-7.5-7-12Z"/><path d="M8 15a4 4 0 0 0 4 4"/>',
+ upload:'<path d="M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5"/>', download:'<path d="M12 3v13m-4-4 4 4 4-4M4 16v5h16v-5"/>',
+ check:'<path d="m5 12 4 4L19 6"/>', sparkle:'<path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/>',
+ brush:'<path d="M14 4c4-4 8-1 5 3l-7 9-5-5 7-7Z"/><path d="M7 12c-4 0-2 7-5 8 5 2 9-1 8-5"/>',
+ hand:'<path d="M8 12V6a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v8c0 5-3 8-7 8-3 0-5-2-6-4l-4-6c-1-2 1-4 3-2l2 2Z"/>',
+ eraser:'<path d="m14 3 7 7-10 11H6l-5-5L14 3ZM8 9l7 7M10 21h11"/>',
+ undo:'<path d="M8 5 3 10l5 5M3 10h11a6 6 0 0 1 0 12" transform="translate(0 -2)"/>', redo:'<path d="m16 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12" transform="translate(0 -2)"/>',
+ minus:'<path d="M5 12h14"/>', plus:'<path d="M5 12h14M12 5v14"/>', reset:'<path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/>',
+ split:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 3v18M7 9v6"/>', mouse:'<rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 6v4"/>'
+};
+document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[el.dataset.icon] || ''}</svg>`);
+let toastTimer;
+function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3600); }
+function updateRange(el) {
+ el.style.setProperty('--fill', `${(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min))*100}%`);
+ const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness'].includes(el.id)?'%':el.id==='hue'?'°':'');
+}
+document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); el.addEventListener('input', () => updateRange(el)); });
+
+class LiquidRenderer {
+ constructor(canvas) {
+  this.canvas=canvas;
+  const gl = canvas.getContext('webgl', {alpha:false, antialias:false, preserveDrawingBuffer:true});
+  if(!gl) throw new Error('当前浏览器不支持图形加速，请尝试新版 Chrome 或 Edge。');
+  this.gl=gl;
+  const vertex=`attribute vec2 a_position; varying vec2 v_uv; void main(){v_uv=vec2((a_position.x+1.0)*0.5,(1.0-a_position.y)*0.5);gl_Position=vec4(a_position,0.0,1.0);}`;
+  const fragment=`precision highp float;
+   varying vec2 v_uv;
+   uniform sampler2D u_image; uniform sampler2D u_field;
+   uniform vec2 u_fieldSize; uniform vec2 u_imageSize;
+   uniform float u_original; uniform float u_brightness; uniform float u_contrast;
+   uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
+   vec3 photo(vec2 uv){vec4 p=texture2D(u_image,clamp(uv,vec2(0.001),vec2(0.999)));return mix(vec3(1.0),p.rgb,p.a);}
+   float heightAt(vec2 uv){return texture2D(u_field,clamp(uv,vec2(0.0),vec2(1.0))).r;}
+   vec3 adjust(vec3 c){
+     c+=u_brightness*0.006;
+     c=(c-0.5)*(1.0+u_contrast*0.012)+0.5;
+     vec3 axis=normalize(vec3(1.0)); float angle=u_hue*0.0174532925;
+     c=c*cos(angle)+cross(axis,c)*sin(angle)+axis*dot(axis,c)*(1.0-cos(angle));
+     float lum=dot(c,vec3(0.2126,0.7152,0.0722)); c=mix(vec3(lum),c,1.0+u_saturation*0.01);
+     c+=vec3(0.0015,0.00025,-0.0015)*u_temperature;
+     return clamp(c,0.0,1.0);
+   }
+   void main(){
+    vec2 uv=v_uv; vec3 color=photo(uv);
+    if(u_original>0.5){gl_FragColor=vec4(color,1.0);return;}
+    vec4 field=texture2D(u_field,uv); float h=field.r;
+    if(h>0.001){
+     vec2 px=1.0/u_fieldSize;
+     vec2 gradient=vec2(heightAt(uv+vec2(px.x,0.0))-heightAt(uv-vec2(px.x,0.0)),heightAt(uv+vec2(0.0,px.y))-heightAt(uv-vec2(0.0,px.y)));
+     vec2 flow=field.gb*2.0-1.0; float flowLength=length(flow);
+     vec2 direction=flowLength>0.02?flow/flowLength:vec2(0.7,0.7);
+     vec2 aspect=vec2(u_imageSize.y/u_imageSize.x,1.0);
+     vec2 offset=gradient*aspect*0.37 + flow*aspect*h*0.015;
+     float ridge=sin(dot(uv/aspect,vec2(-direction.y,direction.x))*155.0+sin(uv.y*23.0)*0.5);
+     offset+=vec2(-direction.y,direction.x)*aspect*ridge*h*h*0.0018;
+     vec2 sampleUV=uv+offset;
+     vec2 blur=direction*aspect*h*h*0.006;
+     vec3 glass=photo(sampleUV)*0.28;
+     glass+=photo(sampleUV+blur)*0.16+photo(sampleUV-blur)*0.16;
+     glass+=photo(sampleUV+blur*2.0)*0.11+photo(sampleUV-blur*2.0)*0.11;
+     glass+=photo(sampleUV+blur*3.0)*0.09+photo(sampleUV-blur*3.0)*0.09;
+     float edge=min(length(gradient)*8.0,1.0);
+     glass.r=mix(glass.r,photo(sampleUV+offset*0.045).r,edge*0.6);
+     glass.b=mix(glass.b,photo(sampleUV-offset*0.045).b,edge*0.6);
+     vec3 normal=normalize(vec3(-gradient.x*8.0,-gradient.y*8.0,1.0));
+     float light=dot(normal,normalize(vec3(-0.45,-0.6,0.65)));
+     float shine=pow(max(light,0.0),12.0)*edge*0.48;
+     float shadow=max(dot(gradient,vec2(0.5,0.7)),0.0)*0.6;
+     glass=glass*(1.0-shadow)+vec3(shine);
+     glass+=max(glass-0.65,vec3(0.0))*h*0.12;
+     color=mix(color,glass,smoothstep(0.0,0.06,h));
+    }
+    gl_FragColor=vec4(adjust(color),1.0);
+   }`;
+  const compile=(type,src)=>{const shader=gl.createShader(type);gl.shaderSource(shader,src);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));return shader;};
+  this.program=gl.createProgram(); gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vertex));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(this.program);
+  if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(this.program));
+  gl.useProgram(this.program);
+  const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  const a=gl.getAttribLocation(this.program,'a_position');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
+  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
+  this.imageTexture=this.texture(0);this.fieldTexture=this.texture(1);gl.uniform1i(this.locations.image,0);gl.uniform1i(this.locations.field,1);
+ }
+ texture(unit){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t;}
+ setImage(image){const gl=this.gl;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);this.width=image.width;this.height=image.height;gl.uniform2f(this.locations.imageSize,this.width,this.height);}
+ setField(data,w,h){const gl=this.gl;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.fieldTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);gl.uniform2f(this.locations.fieldSize,w,h);}
+ draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.drawArrays(gl.TRIANGLES,0,6);}
+}
+
+let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
+let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
+let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
+const pointers=new Map();let pinch=null;
+function pack(){for(let i=0;i<heights.length;i++){let j=i*4;fieldBytes[j]=Math.round(Math.min(1,heights[i])*255);fieldBytes[j+1]=Math.round((flowX[i]*0.5+0.5)*255);fieldBytes[j+2]=Math.round((flowY[i]*0.5+0.5)*255);fieldBytes[j+3]=255;}return fieldBytes;}
+function restore(bytes){for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}dirty=true;requestRender();}
+function saveHistory(){history.push(pack().slice());if(history.length>25)history.shift();future=[];updateHistory();}
+function updateHistory(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
+function undo(){if(!ready||!history.length)return;future.push(pack().slice());restore(history.pop());updateHistory();}
+function redo(){if(!ready||!future.length)return;history.push(pack().slice());restore(future.pop());updateHistory();}
+function requestRender(){if(queued||!ready||exporting)return;queued=true;requestAnimationFrame(()=>{queued=false;if(!ready||exporting)return;if(dirty){renderer.setField(pack(),fieldW,fieldH);dirty=false;}const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),original);if(!original){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);}});}
+function fitCanvas(reset=false){if(!ready)return;const box=$('stage').getBoundingClientRect();const scale=Math.min((box.width-44)/imageWidth,(box.height-44)/imageHeight);fitW=imageWidth*scale;fitH=imageHeight*scale;if(reset){zoom=1;panX=0;panY=0;}const wrap=$('canvasWrap');wrap.style.width=fitW+'px';wrap.style.height=fitH+'px';applyView();}
+function applyView(){panX=Math.max(-fitW*zoom/2,Math.min(fitW*zoom/2,panX));panY=Math.max(-fitH*zoom/2,Math.min(fitH*zoom/2,panY));$('canvasWrap').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;$('fit').textContent=zoom===1?'适应':Math.round(zoom*100)+'%';}
+function changeZoom(value){zoom=Math.max(.5,Math.min(4,value));applyView();}
+function coords(event){const r=$('editor').getBoundingClientRect();return {x:(event.clientX-r.left)/r.width,y:(event.clientY-r.top)/r.height};}
+function brushRadius(){return Number($('brushSize').value)/Math.min(fitW,fitH)/zoom/2*Math.min(fieldW,fieldH);}
+function stamp(x,y,dx,dy,r,amount,erase=false){
+ const cx=x*fieldW,cy=y*fieldH;const xmin=Math.max(0,Math.floor(cx-r)),xmax=Math.min(fieldW-1,Math.ceil(cx+r)),ymin=Math.max(0,Math.floor(cy-r)),ymax=Math.min(fieldH-1,Math.ceil(cy+r));
+ const soft=Number($('softness').value)/100; const len=Math.hypot(dx,dy);const fx=len>0.00001?dx/len:.7,fy=len>0.00001?dy/len:.7;
+ for(let yy=ymin;yy<=ymax;yy++)for(let xx=xmin;xx<=xmax;xx++){
+  const qx=(xx-cx)/r,qy=(yy-cy)/r,d=Math.hypot(qx,qy);if(d>=1)continue;
+  const edge=Math.max(0,Math.min(1,(1-d)/(.25+soft*.75)));const fall=edge*edge*(3-2*edge);
+  const i=yy*fieldW+xx;
+  if(erase){heights[i]*=Math.max(0,1-fall*amount*2.1);if(heights[i]<.002)heights[i]=0;}
+  else{const grain=1+0.07*Math.sin((xx*(-fy)+yy*fx)*.28);const add=fall*amount*grain;heights[i]=Math.min(.97,heights[i]+add*(1-heights[i]*.45));flowX[i]=flowX[i]*(1-fall*.35)+fx*fall*.35;flowY[i]=flowY[i]*(1-fall*.35)+fy*fall*.35;}
+ }
+ dirty=true;
+}
+function pushStroke(x,y,dx,dy,r){
+ const cx=x*fieldW,cy=y*fieldH;const xmin=Math.max(0,Math.floor(cx-r)),xmax=Math.min(fieldW-1,Math.ceil(cx+r)),ymin=Math.max(0,Math.floor(cy-r)),ymax=Math.min(fieldH-1,Math.ceil(cy+r));
+ const oldH=heights.slice(),oldX=flowX.slice(),oldY=flowY.slice();
+ const sample=(a,x,y)=>{x=Math.max(0,Math.min(fieldW-1.001,x));y=Math.max(0,Math.min(fieldH-1.001,y));const ix=Math.floor(x),iy=Math.floor(y),tx=x-ix,ty=y-iy;const j=iy*fieldW+ix;return a[j]*(1-tx)*(1-ty)+a[j+1]*tx*(1-ty)+a[j+fieldW]*(1-tx)*ty+a[j+fieldW+1]*tx*ty;};
+ for(let yy=ymin;yy<=ymax;yy++)for(let xx=xmin;xx<=xmax;xx++){const d=Math.hypot(xx-cx,yy-cy)/r;if(d>=1)continue;const f=(1-d*d)**2;const i=yy*fieldW+xx;const sx=xx-dx*fieldW*f*.9,sy=yy-dy*fieldH*f*.9;heights[i]=sample(oldH,sx,sy);flowX[i]=sample(oldX,sx,sy);flowY[i]=sample(oldY,sx,sy);}
+ dirty=true;
+}
+function paintSegment(a,b,pressure=1){
+ const dx=b.x-a.x,dy=b.y-a.y,r=brushRadius();const distance=Math.hypot(dx*fieldW,dy*fieldH);
+ if(tool==='push'){pushStroke(b.x,b.y,dx,dy,r);return;}
+ const steps=Math.max(1,Math.ceil(distance/Math.max(1,r*.18)));const amount=Number($('amount').value)/100*.11*pressure;
+ for(let i=1;i<=steps;i++)stamp(a.x+dx*i/steps,a.y+dy*i/steps,dx*fieldW,dy*fieldH,r,amount,tool==='erase');
+}
+function setPreset(name,record=true){
+ if(!ready)return;if(record)saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);
+ if(name==='thin'){for(let y=0;y<fieldH;y++)for(let x=0;x<fieldW;x++){const i=y*fieldW+x;heights[i]=.16+.06*Math.sin(x/fieldW*11+y/fieldH*4);flowX[i]=.55;flowY[i]=.3;}}
+ if(name==='strokes'){
+  const radius=Math.min(fieldW,fieldH)*.084;
+  const paths=[[[.02,.29],[.12,.23],[.28,.20],[.43,.16],[.58,.12]],[[.06,.49],[.18,.42],[.34,.37],[.46,.31]],[[.10,.72],[.19,.62],[.31,.56],[.39,.51]]];
+  for(const path of paths)for(let k=1;k<path.length;k++){const a=path[k-1],b=path[k];const dx=b[0]-a[0],dy=b[1]-a[1];const steps=Math.ceil(Math.hypot(dx*fieldW,dy*fieldH)/(radius*.12));for(let s=0;s<=steps;s++)stamp(a[0]+dx*s/steps,a[1]+dy*s/steps,dx*fieldW,dy*fieldH,radius,.035);}
+ }
+ document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;hasEdits=record;requestRender();
+}
+function setTool(next){tool=next;document.querySelectorAll('.tool').forEach(el=>{const on=el.dataset.tool===tool;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});$('brushCursor').classList.toggle('erase',tool==='erase');$('canvasHint').textContent={paint:'拖动涂抹，让光线换一种经过的方式。',push:'沿着已有的液体拖动，把纹路轻轻推开。',erase:'擦去液体，让原本的清晰重新显现。'}[tool];}
+function cursor(event){if(!ready)return;const p=coords(event),el=$('brushCursor');el.style.left=p.x*fitW+'px';el.style.top=p.y*fitH+'px';const size=Number($('brushSize').value)/zoom;el.style.width=size+'px';el.style.height=size+'px';el.hidden=spaceDown||event.pointerType==='touch';}
+function endStroke(){stroke=null;pinch=null;}
+function beginPinch(){if(pointers.size!==2)return;const [a,b]=[...pointers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom,midX:(a.x+b.x)/2,midY:(a.y+b.y)/2,panX,panY};stroke=null;}
+function handleDown(e){if(!ready||exporting||e.button>1)return;e.preventDefault();$('stage').setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){beginPinch();return;}if(pointers.size>2)return;
+ if(spaceDown||e.button===1){stroke={pan:true,x:e.clientX,y:e.clientY,panX,panY};return;}
+ if(e.target!==$('editor'))return;
+ saveHistory();const p=coords(e);stroke={point:p};original=false;$('originalBadge').hidden=true;hasEdits=true;
+ if(tool!=='push')paintSegment(p,p,e.pointerType==='pen'?Math.max(.2,e.pressure):1);dirty=true;requestRender();cursor(e);
+ document.querySelectorAll('.preset').forEach(el=>{el.classList.remove('selected');el.setAttribute('aria-pressed','false');});
+}
+function handleMove(e){cursor(e);if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinch&&pointers.size>=2){const [a,b]=[...pointers.values()];zoom=Math.max(.5,Math.min(4,pinch.zoom*Math.hypot(a.x-b.x,a.y-b.y)/Math.max(1,pinch.distance)));panX=pinch.panX+(a.x+b.x)/2-pinch.midX;panY=pinch.panY+(a.y+b.y)/2-pinch.midY;applyView();return;}
+ if(!stroke)return;if(stroke.pan){panX=stroke.panX+e.clientX-stroke.x;panY=stroke.panY+e.clientY-stroke.y;applyView();return;}
+ const p=coords(e);paintSegment(stroke.point,p,e.pointerType==='pen'?Math.max(.2,e.pressure):1);stroke.point=p;requestRender();
+}
+function handleUp(e){pointers.delete(e.pointerId);endStroke();if(e.pointerType==='touch')$('brushCursor').hidden=true;}
+
+async function loadImage(src,name,sample=false){
+ const token=++loadToken;$('loading').hidden=false;const previousReady=ready;
+ try{
+  const image=new Image();image.src=src;await image.decode();if(token!==loadToken)return;
+  const maxTexture=Math.min(renderer.gl.getParameter(renderer.gl.MAX_TEXTURE_SIZE),8192);
+  const scale=Math.min(1,maxTexture/image.width,maxTexture/image.height,Math.sqrt(24000000/(image.width*image.height)));
+  let source=image;
+  if(scale<1){source=document.createElement('canvas');source.width=Math.max(1,Math.round(image.width*scale));source.height=Math.max(1,Math.round(image.height*scale));source.getContext('2d').drawImage(image,0,0,source.width,source.height);toast('这张照片较大，已缩至 '+source.width+' × '+source.height+' 以流畅编辑。');}
+  renderer.setImage(source);imageWidth=source.width;imageHeight=source.height;
+  const fieldScale=640/Math.max(imageWidth,imageHeight);fieldW=Math.max(2,Math.round(imageWidth*fieldScale));fieldH=Math.max(2,Math.round(imageHeight*fieldScale));
+  const n=fieldW*fieldH;heights=new Float32Array(n);flowX=new Float32Array(n);flowY=new Float32Array(n);fieldBytes=new Uint8Array(n*4);
+  history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);
+  $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
+  $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();
+ }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
+ finally{if(token===loadToken&&ready)$('loading').hidden=true;}
+}
+async function loadFile(file){if(!file)return;if(!['image/png','image/jpeg','image/webp'].includes(file.type)){toast('请选择 PNG、JPG 或 WebP 图片。');return;}if(file.size>60*1024*1024){toast('请选择小于 60 MB 的图片。');return;}const url=URL.createObjectURL(file);try{await loadImage(url,file.name);}finally{URL.revokeObjectURL(url);$('fileInput').value='';}}
+function resetColors(render=true){document.querySelectorAll('.color-adjust').forEach(el=>{el.value=0;updateRange(el);});if(render)requestRender();}
+function compare(on){if(!ready)return;original=on;$('originalBadge').hidden=!on;requestRender();}
+async function exportImage(){
+ if(!ready||exporting)return;exporting=true;$('export').disabled=true;$('export').textContent='正在导出…';
+ try{
+  if(dirty){renderer.setField(pack(),fieldW,fieldH);dirty=false;}
+  const target=$('exportSize').value;const scale=target==='original'?1:Math.min(1,Number(target)/Math.max(imageWidth,imageHeight));
+  const w=Math.max(1,Math.round(imageWidth*scale)),h=Math.max(1,Math.round(imageHeight*scale));renderer.draw(w,h,false);
+  const format=$('format').value;const blob=await new Promise(resolve=>$('editor').toBlob(resolve,'image/'+format,.95));if(!blob)throw new Error('Empty image');
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=currentName+'-液体涂抹.'+(format==='jpeg'?'jpg':'png');document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast(`已导出 ${w} × ${h} 的${format==='jpeg'?' JPG':' PNG'} 图片`);
+ }catch(error){console.error(error);toast('导出未完成，请尝试较小的导出尺寸。');}
+ finally{exporting=false;$('export').disabled=false;$('export').innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${icons.download}</svg>导出图片`;requestRender();}
+}
+
+try{
+ renderer=new LiquidRenderer($('editor'));
+ $('stage').addEventListener('pointerdown',handleDown);$('stage').addEventListener('pointermove',handleMove);$('stage').addEventListener('pointerup',handleUp);$('stage').addEventListener('pointercancel',handleUp);$('editor').addEventListener('pointerleave',()=>{$('brushCursor').hidden=true;});
+ $('stage').addEventListener('wheel',e=>{if(!ready)return;e.preventDefault();changeZoom(zoom*Math.exp(-e.deltaY*.001));},{passive:false});
+ $('uploadTop').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>loadFile(e.target.files[0]);
+ let dragDepth=0;document.body.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();dragDepth++;$('dropOverlay').hidden=false;});document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('dragleave',e=>{e.preventDefault();if(--dragDepth<=0){dragDepth=0;$('dropOverlay').hidden=true;}});document.body.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('dropOverlay').hidden=true;loadFile(e.dataTransfer.files[0]);});
+ document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));document.querySelectorAll('.preset').forEach(el=>el.onclick=()=>setPreset(el.dataset.preset));
+ document.querySelectorAll('.color-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
+ $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{setPreset('clear');toast('涂抹已清空，可撤销恢复。');};$('resetColor').onclick=()=>resetColors();
+ $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
+ $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
+ $('loadSample').onclick=()=>loadImage('assets/sample.png','示例照片',true);
+ new ResizeObserver(()=>fitCanvas()).observe($('stage'));
+ document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(e.ctrlKey||e.metaKey||e.altKey)return;if(e.code==='Space'&&e.target===document.body){e.preventDefault();spaceDown=true;$('editor').style.cursor='grab';$('brushCursor').hidden=true;}if(e.key.toLowerCase()==='b')setTool('paint');if(e.key.toLowerCase()==='p')setTool('push');if(e.key.toLowerCase()==='e')setTool('erase');});
+ document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('editor').style.cursor='none';}});window.addEventListener('blur',()=>{spaceDown=false;endStroke();pointers.clear();compare(false);});
+ $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
+ loadImage('assets/sample.png','示例照片',true);
+}catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
+
+// Use the same editor actions for supported agent-enabled browsers.
+if(document.modelContext?.registerTool){
+ const lifecycle=new AbortController();window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
+ const tools=[{
+  name:'read_liquid_editor',title:'读取液体编辑状态',description:'Read the current image dimensions, selected brush and color adjustments. Does not return image data.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},
+  execute(){return {ready,dimensions:{width:imageWidth,height:imageHeight},tool,brushSize:Number($('brushSize').value),thickness:Number($('amount').value),undoAvailable:history.length>0,colors:Object.fromEntries(['brightness','contrast','hue','saturation','temperature'].map(id=>[id,Number($(id).value)]))};}
+ },{
+  name:'configure_liquid_editor',title:'调整液体编辑参数',description:'Select the same brush or adjust the same color controls as the visible interface. Does not reset strokes or export an image.',inputSchema:{type:'object',properties:{tool:{type:'string',enum:['paint','push','erase']},brushSize:{type:'number',minimum:20,maximum:240},amount:{type:'number',minimum:5,maximum:100},softness:{type:'number',minimum:15,maximum:100},brightness:{type:'number',minimum:-50,maximum:50},contrast:{type:'number',minimum:-50,maximum:50},hue:{type:'number',minimum:-180,maximum:180},saturation:{type:'number',minimum:-100,maximum:100},temperature:{type:'number',minimum:-50,maximum:50}},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},
+  async execute(input){
+   if(!ready)throw new Error('Upload an image or wait for the sample to load first.');
+   if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Expected a settings object.');
+   const bounds={brushSize:[20,240],amount:[5,100],softness:[15,100],brightness:[-50,50],contrast:[-50,50],hue:[-180,180],saturation:[-100,100],temperature:[-50,50]};
+   for(const [key,value] of Object.entries(input)){if(key==='tool'){if(!['paint','push','erase'].includes(value))throw new Error('Unknown brush.');}else if(!bounds[key]||typeof value!=='number'||!Number.isFinite(value)||value<bounds[key][0]||value>bounds[key][1])throw new Error('Invalid setting: '+key);}
+   for(const [key,value] of Object.entries(input)){if(key==='tool')setTool(value);else{$(key).value=value;updateRange($(key));}}
+   requestRender();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {updated:true};
+  }
+ }];
+ for(const definition of tools){try{Promise.resolve(document.modelContext.registerTool(definition,{signal:lifecycle.signal})).catch(()=>{});}catch{}}
+}
