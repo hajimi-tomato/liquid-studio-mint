@@ -33,8 +33,15 @@
           <button class="tool" data-tool="erase" aria-pressed="false"><span data-icon="eraser"></span><span>擦除</span><kbd>E</kbd></button>
         </div>
         <label class="slider-label" for="brushSize"><span>笔刷大小</span><output id="brushSizeValue">100</output></label><input id="brushSize" type="range" min="20" max="240" value="100">
-        <label class="slider-label" for="amount"><span>涂抹厚度</span><output id="amountValue">55%</output></label><input id="amount" type="range" min="5" max="100" value="55">
+        <label class="slider-label" for="amount"><span>涂抹厚度</span><output id="amountValue">72%</output></label><input id="amount" type="range" min="5" max="100" value="72">
         <label class="slider-label" for="softness"><span>边缘柔和</span><output id="softnessValue">65%</output></label><input id="softness" type="range" min="15" max="100" value="65">
+      </section>
+      <section class="liquid-section">
+        <div class="section-heading"><h2>液体质感</h2><span class="eyebrow">03 / LIGHT</span></div>
+        <div class="finish-options" role="group" aria-label="液体质感预设"><button data-finish="clear" aria-pressed="false">清透</button><button class="selected" data-finish="gel" aria-pressed="true">凝胶</button><button data-finish="glow" aria-pressed="false">流光</button></div>
+        <label class="slider-label" for="refraction"><span>折射力度</span><output id="refractionValue">75%</output></label><input class="liquid-adjust" id="refraction" type="range" min="0" max="100" value="75">
+        <label class="slider-label" for="gloss"><span>边缘光泽</span><output id="glossValue">65%</output></label><input class="liquid-adjust" id="gloss" type="range" min="0" max="100" value="65">
+        <label class="slider-label" for="diffusion"><span>柔光扩散</span><output id="diffusionValue">35%</output></label><input class="liquid-adjust" id="diffusion" type="range" min="0" max="100" value="35">
       </section>
       <div class="sidebar-note"><span data-icon="sparkle"></span><p>反复涂抹会加厚液体。<br>试着留下几处清晰的留白。</p></div>
       <div class="sidebar-footer"><span>更多材质，慢慢加入。</span><span>VOL. 01</span></div>

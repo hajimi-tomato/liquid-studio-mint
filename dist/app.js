@@ -15,7 +15,7 @@ let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3600); }
 function updateRange(el) {
  el.style.setProperty('--fill', `${(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min))*100}%`);
- const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness'].includes(el.id)?'%':el.id==='hue'?'°':'');
+ const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion'].includes(el.id)?'%':el.id==='hue'?'°':'');
 }
 document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); el.addEventListener('input', () => updateRange(el)); });
 
@@ -32,6 +32,7 @@ class LiquidRenderer {
    uniform vec2 u_fieldSize; uniform vec2 u_imageSize;
    uniform float u_original; uniform float u_brightness; uniform float u_contrast;
    uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
+   uniform float u_refraction; uniform float u_gloss; uniform float u_diffusion;
    vec3 photo(vec2 uv){vec4 p=texture2D(u_image,clamp(uv,vec2(0.001),vec2(0.999)));return mix(vec3(1.0),p.rgb,p.a);}
    float heightAt(vec2 uv){return texture2D(u_field,clamp(uv,vec2(0.0),vec2(1.0))).r;}
    vec3 adjust(vec3 c){
@@ -53,24 +54,30 @@ class LiquidRenderer {
      vec2 flow=field.gb*2.0-1.0; float flowLength=length(flow);
      vec2 direction=flowLength>0.02?flow/flowLength:vec2(0.7,0.7);
      vec2 aspect=vec2(u_imageSize.y/u_imageSize.x,1.0);
-     vec2 offset=gradient*aspect*0.37 + flow*aspect*h*0.015;
-     float ridge=sin(dot(uv/aspect,vec2(-direction.y,direction.x))*155.0+sin(uv.y*23.0)*0.5);
-     offset+=vec2(-direction.y,direction.x)*aspect*ridge*h*h*0.0018;
+     float refract=u_refraction*0.01;float gloss=u_gloss*0.01;float diffusion=u_diffusion*0.01;
+     vec2 offset=gradient*aspect*refract*2.2 + flow*aspect*h*refract*0.09;
+     vec2 across=vec2(-direction.y,direction.x);
+     float ridge=sin(dot(uv/aspect,across)*155.0+sin(uv.y*23.0)*0.7);
+     float broadRidge=sin(dot(uv/aspect,across)*46.0+sin(uv.x*17.0)*0.9);
+     offset+=across*aspect*(ridge*0.0025+broadRidge*0.005)*h*refract;
+     offset=clamp(offset,vec2(-0.15),vec2(0.15));
      vec2 sampleUV=uv+offset;
-     vec2 blur=direction*aspect*h*h*0.006;
+     vec2 blur=direction*aspect*h*(0.001+diffusion*0.025);
      vec3 glass=photo(sampleUV)*0.28;
      glass+=photo(sampleUV+blur)*0.16+photo(sampleUV-blur)*0.16;
      glass+=photo(sampleUV+blur*2.0)*0.11+photo(sampleUV-blur*2.0)*0.11;
      glass+=photo(sampleUV+blur*3.0)*0.09+photo(sampleUV-blur*3.0)*0.09;
-     float edge=min(length(gradient)*8.0,1.0);
-     glass.r=mix(glass.r,photo(sampleUV+offset*0.045).r,edge*0.6);
-     glass.b=mix(glass.b,photo(sampleUV-offset*0.045).b,edge*0.6);
-     vec3 normal=normalize(vec3(-gradient.x*8.0,-gradient.y*8.0,1.0));
-     float light=dot(normal,normalize(vec3(-0.45,-0.6,0.65)));
-     float shine=pow(max(light,0.0),12.0)*edge*0.48;
-     float shadow=max(dot(gradient,vec2(0.5,0.7)),0.0)*0.6;
-     glass=glass*(1.0-shadow)+vec3(shine);
-     glass+=max(glass-0.65,vec3(0.0))*h*0.12;
+     float edge=min(length(gradient)*24.0,1.0);
+     glass.r=mix(glass.r,photo(sampleUV+offset*0.07).r,edge*0.68);
+     glass.b=mix(glass.b,photo(sampleUV-offset*0.07).b,edge*0.68);
+     vec3 normal=normalize(vec3(-gradient.x*22.0,-gradient.y*22.0,1.0));
+     float light=dot(normal,normalize(vec3(-0.45,-0.6,0.8)));
+     float shine=pow(max(light,0.0),18.0)*edge*gloss*1.6;
+     float rim=pow(1.0-normal.z,1.3)*gloss*0.28;
+     float shadow=max(dot(gradient,vec2(0.5,0.7)),0.0)*gloss*2.7;
+     glass=glass*(1.0-shadow)+vec3(1.0,0.99,0.93)*(shine+rim);
+     vec3 halo=photo(sampleUV+aspect*vec2(0.014,0.0))+photo(sampleUV-aspect*vec2(0.014,0.0))+photo(sampleUV+vec2(0.0,0.014))+photo(sampleUV-vec2(0.0,0.014));
+     glass+=max(halo*0.25-0.55,vec3(0.0))*h*diffusion*0.65;
      color=mix(color,glass,smoothstep(0.0,0.06,h));
     }
     gl_FragColor=vec4(adjust(color),1.0);
@@ -81,13 +88,13 @@ class LiquidRenderer {
   gl.useProgram(this.program);
   const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const a=gl.getAttribLocation(this.program,'a_position');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
-  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
+  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
   this.imageTexture=this.texture(0);this.fieldTexture=this.texture(1);gl.uniform1i(this.locations.image,0);gl.uniform1i(this.locations.field,1);
  }
  texture(unit){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t;}
  setImage(image){const gl=this.gl;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);this.width=image.width;this.height=image.height;gl.uniform2f(this.locations.imageSize,this.width,this.height);}
  setField(data,w,h){const gl=this.gl;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.fieldTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);gl.uniform2f(this.locations.fieldSize,w,h);}
- draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.drawArrays(gl.TRIANGLES,0,6);}
+ draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.drawArrays(gl.TRIANGLES,0,6);}
 }
 
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
@@ -128,16 +135,16 @@ function pushStroke(x,y,dx,dy,r){
 function paintSegment(a,b,pressure=1){
  const dx=b.x-a.x,dy=b.y-a.y,r=brushRadius();const distance=Math.hypot(dx*fieldW,dy*fieldH);
  if(tool==='push'){pushStroke(b.x,b.y,dx,dy,r);return;}
- const steps=Math.max(1,Math.ceil(distance/Math.max(1,r*.18)));const amount=Number($('amount').value)/100*.11*pressure;
+ const steps=Math.max(1,Math.ceil(distance/Math.max(1,r*.14)));const amount=Number($('amount').value)/100*.17*pressure;
  for(let i=1;i<=steps;i++)stamp(a.x+dx*i/steps,a.y+dy*i/steps,dx*fieldW,dy*fieldH,r,amount,tool==='erase');
 }
 function setPreset(name,record=true){
  if(!ready)return;if(record)saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);
  if(name==='thin'){for(let y=0;y<fieldH;y++)for(let x=0;x<fieldW;x++){const i=y*fieldW+x;heights[i]=.16+.06*Math.sin(x/fieldW*11+y/fieldH*4);flowX[i]=.55;flowY[i]=.3;}}
  if(name==='strokes'){
-  const radius=Math.min(fieldW,fieldH)*.084;
-  const paths=[[[.02,.29],[.12,.23],[.28,.20],[.43,.16],[.58,.12]],[[.06,.49],[.18,.42],[.34,.37],[.46,.31]],[[.10,.72],[.19,.62],[.31,.56],[.39,.51]]];
-  for(const path of paths)for(let k=1;k<path.length;k++){const a=path[k-1],b=path[k];const dx=b[0]-a[0],dy=b[1]-a[1];const steps=Math.ceil(Math.hypot(dx*fieldW,dy*fieldH)/(radius*.12));for(let s=0;s<=steps;s++)stamp(a[0]+dx*s/steps,a[1]+dy*s/steps,dx*fieldW,dy*fieldH,radius,.035);}
+  const radius=Math.min(fieldW,fieldH)*.095;
+  const paths=[[[.00,.27],[.10,.21],[.27,.16],[.44,.12],[.64,.08]],[[.02,.49],[.15,.41],[.31,.35],[.48,.28],[.57,.22]],[[.07,.74],[.16,.64],[.29,.55],[.40,.49]],[[.12,.96],[.21,.85],[.32,.77]]];
+  for(const path of paths)for(let k=1;k<path.length;k++){const a=path[k-1],b=path[k];const dx=b[0]-a[0],dy=b[1]-a[1];const steps=Math.ceil(Math.hypot(dx*fieldW,dy*fieldH)/(radius*.12));for(let s=0;s<=steps;s++)stamp(a[0]+dx*s/steps,a[1]+dy*s/steps,dx*fieldW,dy*fieldH,radius,.065);}
  }
  document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;hasEdits=record;requestRender();
 }
@@ -199,6 +206,8 @@ try{
  let dragDepth=0;document.body.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();dragDepth++;$('dropOverlay').hidden=false;});document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('dragleave',e=>{e.preventDefault();if(--dragDepth<=0){dragDepth=0;$('dropOverlay').hidden=true;}});document.body.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('dropOverlay').hidden=true;loadFile(e.dataTransfer.files[0]);});
  document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));document.querySelectorAll('.preset').forEach(el=>el.onclick=()=>setPreset(el.dataset.preset));
  document.querySelectorAll('.color-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
+ document.querySelectorAll('.liquid-adjust').forEach(el=>el.addEventListener('input',()=>{document.querySelectorAll('[data-finish]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});hasEdits=true;requestRender();}));
+ document.querySelectorAll('[data-finish]').forEach(el=>el.onclick=()=>{const settings={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish];['refraction','gloss','diffusion'].forEach((id,i)=>{$(id).value=settings[i];updateRange($(id));});document.querySelectorAll('[data-finish]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});requestRender();});
  $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{setPreset('clear');toast('涂抹已清空，可撤销恢复。');};$('resetColor').onclick=()=>resetColors();
  $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
  $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
