@@ -33,6 +33,7 @@ class LiquidRenderer {
    uniform float u_original; uniform float u_brightness; uniform float u_contrast;
    uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
    uniform float u_refraction; uniform float u_gloss; uniform float u_diffusion;
+   uniform float u_strokeIntensity; uniform float u_strokeThickness; uniform float u_strokeSoftness;
    uniform vec3 u_absorption; uniform float u_glassTint; uniform float u_glassClarity; uniform float u_glassReflection; uniform float u_glassWarp; uniform float u_glassTexture;
    vec3 rawPhoto(vec2 uv){vec4 p=texture2D(u_image,clamp(uv,vec2(0.0),vec2(1.0)));return mix(vec3(1.0),p.rgb,p.a);}
    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -64,7 +65,7 @@ class LiquidRenderer {
     vec2 uv=v_uv;
     if(u_original>0.5){gl_FragColor=vec4(rawPhoto(uv),1.0);return;}
     vec3 color=photo(uv);
-    vec4 field=texture2D(u_field,uv); float h=field.r;
+    vec4 field=texture2D(u_field,uv); float rawH=field.r; float h=pow(max(rawH,0.0001),mix(1.0,0.38,u_strokeSoftness))*u_strokeIntensity*u_strokeThickness; h=clamp(h,0.0,1.0);
     if(h>0.001){
      vec2 px=1.0/u_fieldSize;
      vec2 gradient=vec2(heightAt(uv+vec2(px.x,0.0))-heightAt(uv-vec2(px.x,0.0)),heightAt(uv+vec2(0.0,px.y))-heightAt(uv-vec2(0.0,px.y)));
@@ -79,7 +80,7 @@ class LiquidRenderer {
      offset+=across*aspect*(ridge*0.0025+broadRidge*0.005)*h*refract;
      offset=clamp(offset,vec2(-0.15),vec2(0.15));
      vec2 sampleUV=uv+offset;
-     vec2 blur=direction*aspect*h*(0.001+diffusion*0.025);
+     vec2 blur=direction*aspect*h*(0.001+diffusion*0.025+u_strokeSoftness*0.035);
      vec3 glass=photo(sampleUV)*0.28;
      glass+=photo(sampleUV+blur)*0.16+photo(sampleUV-blur)*0.16;
      glass+=photo(sampleUV+blur*2.0)*0.11+photo(sampleUV-blur*2.0)*0.11;
@@ -105,21 +106,22 @@ class LiquidRenderer {
   gl.useProgram(this.program);
   const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const a=gl.getAttribLocation(this.program,'a_position');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
-  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion','absorption','glassTint','glassClarity','glassReflection','glassWarp','glassTexture'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
+  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','absorption','glassTint','glassClarity','glassReflection','glassWarp','glassTexture'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
   this.imageTexture=this.texture(0);this.fieldTexture=this.texture(1);gl.uniform1i(this.locations.image,0);gl.uniform1i(this.locations.field,1);
  }
  texture(unit){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t;}
  setImage(image){const gl=this.gl;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);this.width=image.width;this.height=image.height;gl.uniform2f(this.locations.imageSize,this.width,this.height);}
  setField(data,w,h){const gl=this.gl;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.fieldTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);gl.uniform2f(this.locations.fieldSize,w,h);}
- draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.uniform3fv(this.locations.absorption,GLASS_COLORS[glassColor]);gl.uniform1f(this.locations.glassTexture,['smooth','reeded','ripple'].indexOf(glassTexture));gl.drawArrays(gl.TRIANGLES,0,6);}
+ draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','glassTint','glassClarity','glassReflection','glassWarp'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)/(['strokeIntensity','strokeThickness','strokeSoftness'].includes(n)?100:1)));gl.uniform3fv(this.locations.absorption,GLASS_COLORS[glassColor]);gl.uniform1f(this.locations.glassTexture,['smooth','reeded','ripple'].indexOf(glassTexture));gl.drawArrays(gl.TRIANGLES,0,6);}
 }
 
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
 let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
 const GLASS_COLORS={clear:[0,0,0],blue:[1.05,.35,.025],yellow:[.02,.15,1.1],brown:[.23,.7,1.28],red:[.04,1.1,.95]};
-const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
+const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,strokeIntensity:100,strokeThickness:100,strokeSoftness:0,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
 let glassColor='clear',glassTexture='smooth',originalSource=null;
+let strokeCount=0;
 function captureSettings(){return {values:Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map(id=>[id,Number($(id).value)])),glassColor,glassTexture,tool};}
 function applySettings(settings){for(const [id,def] of Object.entries(DEFAULT_SETTINGS)){$(id).value=settings.values?.[id]??def;updateRange($(id));}glassColor=Object.hasOwn(GLASS_COLORS,settings.glassColor)?settings.glassColor:'clear';glassTexture=['smooth','reeded','ripple'].includes(settings.glassTexture)?settings.glassTexture:'smooth';setTool(['paint','push','erase'].includes(settings.tool)?settings.tool:'paint');syncGlass();syncFinish();}
 function syncGlass(){document.querySelectorAll('[data-glass]').forEach(el=>{const on=el.dataset.glass===glassColor;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});document.querySelectorAll('[data-glass-texture]').forEach(el=>{const on=el.dataset.glassTexture===glassTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
@@ -165,7 +167,7 @@ function paintSegment(a,b,pressure=1){
  for(let i=1;i<=steps;i++)stamp(a.x+dx*i/steps,a.y+dy*i/steps,dx*fieldW,dy*fieldH,r,amount,tool==='erase');
 }
 function setPreset(name,record=true){
- if(!ready)return;if(record)saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);
+ if(!ready)return;if(record)saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);strokeCount=name==='clear'?0:(name==='strokes'?4:1);updateStrokeCount();
  if(name==='thin'){for(let y=0;y<fieldH;y++)for(let x=0;x<fieldW;x++){const i=y*fieldW+x;heights[i]=.16+.06*Math.sin(x/fieldW*11+y/fieldH*4);flowX[i]=.55;flowY[i]=.3;}}
  if(name==='strokes'){
   const radius=Math.min(fieldW,fieldH)*.095;
@@ -174,6 +176,7 @@ function setPreset(name,record=true){
  }
  document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;hasEdits=record;requestRender();
 }
+function updateStrokeCount(){const el=$('strokeCount');if(el)el.textContent=strokeCount+' 笔';}
 function setTool(next){tool=next;document.querySelectorAll('.tool').forEach(el=>{const on=el.dataset.tool===tool;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});$('brushCursor').classList.toggle('erase',tool==='erase');$('canvasHint').textContent={paint:'拖动涂抹，让光线换一种经过的方式。',push:'沿着已有的液体拖动，把纹路轻轻推开。',erase:'擦去液体，让原本的清晰重新显现。'}[tool];}
 function cursor(event){if(!ready)return;const p=coords(event),el=$('brushCursor');el.style.left=p.x*fitW+'px';el.style.top=p.y*fitH+'px';const size=Number($('brushSize').value)/zoom;el.style.width=size+'px';el.style.height=size+'px';el.hidden=spaceDown||event.pointerType==='touch';}
 function endStroke(){stroke=null;pinch=null;}
@@ -181,7 +184,7 @@ function beginPinch(){if(pointers.size!==2)return;const [a,b]=[...pointers.value
 function handleDown(e){if(!ready||exporting||e.button>1)return;e.preventDefault();$('stage').setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){beginPinch();return;}if(pointers.size>2)return;
  if(spaceDown||e.button===1){stroke={pan:true,x:e.clientX,y:e.clientY,panX,panY};return;}
  if(e.target!==$('editor'))return;
- saveHistory();const p=coords(e);stroke={point:p};original=false;$('originalBadge').hidden=true;hasEdits=true;
+ saveHistory();strokeCount++;updateStrokeCount();const p=coords(e);stroke={point:p};original=false;$('originalBadge').hidden=true;hasEdits=true;
  if(tool!=='push')paintSegment(p,p,e.pointerType==='pen'?Math.max(.2,e.pressure):1);dirty=true;requestRender();cursor(e);
  document.querySelectorAll('.preset').forEach(el=>{el.classList.remove('selected');el.setAttribute('aria-pressed','false');});
 }
@@ -203,7 +206,7 @@ async function loadImage(src,name,sample=false){
   renderer.setImage(source);originalSource=source;imageWidth=source.width;imageHeight=source.height;
   const fieldScale=640/Math.max(imageWidth,imageHeight);fieldW=Math.max(2,Math.round(imageWidth*fieldScale));fieldH=Math.max(2,Math.round(imageHeight*fieldScale));
   const n=fieldW*fieldH;heights=new Float32Array(n);flowX=new Float32Array(n);flowY=new Float32Array(n);fieldBytes=new Uint8Array(n*4);
-  history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);
+  history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);Object.entries({strokeIntensity:100,strokeThickness:100,strokeSoftness:0}).forEach(([id,value])=>{$(id).value=value;updateRange($(id));});
   $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
   $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();return true;
  }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
@@ -278,6 +281,7 @@ try{
  document.querySelectorAll('[data-glass-texture]').forEach(el=>el.onclick=()=>{if(!ready)return;saveHistory();glassTexture=el.dataset.glassTexture;syncGlass();requestRender();});
  document.querySelectorAll('.glass-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('pointerdown',()=>{if(ready)saveHistory();}));
+ $('resetStrokeAdjust').onclick=()=>{if(!ready)return;saveHistory();['strokeIntensity','strokeThickness','strokeSoftness'].forEach((id,i)=>{$(id).value=[100,100,0][i];updateRange($(id));});requestRender();toast('已重置这组涂抹的整体调整。');};
  $('restoreAll').onclick=restoreAll;
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
@@ -298,13 +302,13 @@ if(document.modelContext?.registerTool){
  const lifecycle=new AbortController();window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
  const tools=[{
   name:'read_liquid_editor',title:'读取液体编辑状态',description:'Read the current image dimensions, selected brush and color adjustments. Does not return image data.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},
-  execute(){return {ready,dimensions:{width:imageWidth,height:imageHeight},tool,brushSize:Number($('brushSize').value),thickness:Number($('amount').value),undoAvailable:history.length>0,colors:Object.fromEntries(['brightness','contrast','hue','saturation','temperature'].map(id=>[id,Number($(id).value)]))};}
+  execute(){return {ready,dimensions:{width:imageWidth,height:imageHeight},tool,strokeCount,brushSize:Number($('brushSize').value),thickness:Number($('amount').value),undoAvailable:history.length>0,colors:Object.fromEntries(['brightness','contrast','hue','saturation','temperature'].map(id=>[id,Number($(id).value)])),strokeLayer:Object.fromEntries(['strokeIntensity','strokeThickness','strokeSoftness'].map(id=>[id,Number($(id).value)]))};}
  },{
-  name:'configure_liquid_editor',title:'调整液体编辑参数',description:'Select the same brush or adjust the same color controls as the visible interface. Does not reset strokes or export an image.',inputSchema:{type:'object',properties:{tool:{type:'string',enum:['paint','push','erase']},brushSize:{type:'number',minimum:20,maximum:240},amount:{type:'number',minimum:5,maximum:100},softness:{type:'number',minimum:15,maximum:100},brightness:{type:'number',minimum:-50,maximum:50},contrast:{type:'number',minimum:-50,maximum:50},hue:{type:'number',minimum:-180,maximum:180},saturation:{type:'number',minimum:-100,maximum:100},temperature:{type:'number',minimum:-50,maximum:50}},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},
+  name:'configure_liquid_editor',title:'调整液体编辑参数',description:'Select the same brush or adjust the same color and current stroke-layer controls as the visible interface. Does not reset strokes or export an image.',inputSchema:{type:'object',properties:{tool:{type:'string',enum:['paint','push','erase']},brushSize:{type:'number',minimum:20,maximum:240},amount:{type:'number',minimum:5,maximum:100},softness:{type:'number',minimum:15,maximum:100},strokeIntensity:{type:'number',minimum:0,maximum:150},strokeThickness:{type:'number',minimum:20,maximum:180},strokeSoftness:{type:'number',minimum:0,maximum:100},brightness:{type:'number',minimum:-50,maximum:50},contrast:{type:'number',minimum:-50,maximum:50},hue:{type:'number',minimum:-180,maximum:180},saturation:{type:'number',minimum:-100,maximum:100},temperature:{type:'number',minimum:-50,maximum:50}},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},
   async execute(input){
    if(!ready)throw new Error('Upload an image or wait for the sample to load first.');
    if(!input||typeof input!=='object'||Array.isArray(input))throw new Error('Expected a settings object.');
-   const bounds={brushSize:[20,240],amount:[5,100],softness:[15,100],brightness:[-50,50],contrast:[-50,50],hue:[-180,180],saturation:[-100,100],temperature:[-50,50]};
+   const bounds={brushSize:[20,240],amount:[5,100],softness:[15,100],strokeIntensity:[0,150],strokeThickness:[20,180],strokeSoftness:[0,100],brightness:[-50,50],contrast:[-50,50],hue:[-180,180],saturation:[-100,100],temperature:[-50,50]};
    for(const [key,value] of Object.entries(input)){if(key==='tool'){if(!['paint','push','erase'].includes(value))throw new Error('Unknown brush.');}else if(!bounds[key]||typeof value!=='number'||!Number.isFinite(value)||value<bounds[key][0]||value>bounds[key][1])throw new Error('Invalid setting: '+key);}
    for(const [key,value] of Object.entries(input)){if(key==='tool')setTool(value);else{$(key).value=value;updateRange($(key));}}
    requestRender();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {updated:true};
