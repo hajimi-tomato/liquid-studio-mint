@@ -15,7 +15,7 @@ let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3600); }
 function updateRange(el) {
  el.style.setProperty('--fill', `${(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min))*100}%`);
- const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion'].includes(el.id)?'%':el.id==='hue'?'°':'');
+ const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp'].includes(el.id)?'%':el.id==='hue'?'°':'');
 }
 document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); el.addEventListener('input', () => updateRange(el)); });
 
@@ -33,7 +33,23 @@ class LiquidRenderer {
    uniform float u_original; uniform float u_brightness; uniform float u_contrast;
    uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
    uniform float u_refraction; uniform float u_gloss; uniform float u_diffusion;
-   vec3 photo(vec2 uv){vec4 p=texture2D(u_image,clamp(uv,vec2(0.001),vec2(0.999)));return mix(vec3(1.0),p.rgb,p.a);}
+   uniform vec3 u_absorption; uniform float u_glassTint; uniform float u_glassClarity; uniform float u_glassReflection; uniform float u_glassWarp; uniform float u_glassTexture;
+   vec3 rawPhoto(vec2 uv){vec4 p=texture2D(u_image,clamp(uv,vec2(0.0),vec2(1.0)));return mix(vec3(1.0),p.rgb,p.a);}
+   float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+   vec3 photo(vec2 uv){
+    vec2 aspect=vec2(u_imageSize.y/u_imageSize.x,1.0);vec2 q=uv;float ridge=0.0;float warp=u_glassWarp*0.01;
+    if(u_glassTexture>0.5&&u_glassTexture<1.5){float phase=uv.x/aspect.x*115.0;ridge=cos(phase);q.x+=sin(phase)*0.018*aspect.x*warp;}
+    else if(u_glassTexture>1.5){ridge=sin(uv.x/aspect.x*33.0+sin(uv.y*29.0))*cos(uv.y*22.0);q+=vec2(ridge,cos(uv.y*31.0+sin(uv.x*27.0)))*aspect*warp*0.014;}
+    float frost=1.0-u_glassClarity*.01;vec3 c=rawPhoto(q);
+    if(frost>.001){vec2 jitter=(vec2(hash(floor(uv*u_imageSize*.45)),hash(floor(uv.yx*u_imageSize.yx*.45)+7.0))-.5)*aspect*frost*.013;vec2 b=aspect*frost*.024;q+=jitter;c=rawPhoto(q)*.24;c+=rawPhoto(q+vec2(b.x,0.0))*.19+rawPhoto(q-vec2(b.x,0.0))*.19+rawPhoto(q+vec2(0.0,b.y))*.19+rawPhoto(q-vec2(0.0,b.y))*.19;c=mix(c,vec3(.86,.89,.87),frost*.17);}
+    float depth=u_glassTint*.01*(1.0+abs(ridge)*warp*.4);
+    vec3 transmission=exp(-u_absorption*depth*1.6);
+    c*=transmission;
+    float band=exp(-pow((uv.x+uv.y*.6-.36)*7.0,2.0))*.15;
+    float edge=pow(1.0-min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y)),16.0)*.055;
+    c+=(vec3(.96,.99,1.0)*band+vec3(edge)+vec3(max(ridge,0.0)*warp*.10))*u_glassReflection*.01;
+    return c;
+   }
    float heightAt(vec2 uv){return texture2D(u_field,clamp(uv,vec2(0.0),vec2(1.0))).r;}
    vec3 adjust(vec3 c){
      c+=u_brightness*0.006;
@@ -45,8 +61,9 @@ class LiquidRenderer {
      return clamp(c,0.0,1.0);
    }
    void main(){
-    vec2 uv=v_uv; vec3 color=photo(uv);
-    if(u_original>0.5){gl_FragColor=vec4(color,1.0);return;}
+    vec2 uv=v_uv;
+    if(u_original>0.5){gl_FragColor=vec4(rawPhoto(uv),1.0);return;}
+    vec3 color=photo(uv);
     vec4 field=texture2D(u_field,uv); float h=field.r;
     if(h>0.001){
      vec2 px=1.0/u_fieldSize;
@@ -88,25 +105,34 @@ class LiquidRenderer {
   gl.useProgram(this.program);
   const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const a=gl.getAttribLocation(this.program,'a_position');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
-  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
+  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion','absorption','glassTint','glassClarity','glassReflection','glassWarp','glassTexture'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
   this.imageTexture=this.texture(0);this.fieldTexture=this.texture(1);gl.uniform1i(this.locations.image,0);gl.uniform1i(this.locations.field,1);
  }
  texture(unit){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t;}
  setImage(image){const gl=this.gl;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);this.width=image.width;this.height=image.height;gl.uniform2f(this.locations.imageSize,this.width,this.height);}
  setField(data,w,h){const gl=this.gl;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.fieldTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);gl.uniform2f(this.locations.fieldSize,w,h);}
- draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.drawArrays(gl.TRIANGLES,0,6);}
+ draw(w,h,original=false){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp'].forEach(n=>gl.uniform1f(this.locations[n],Number($(n).value)));gl.uniform3fv(this.locations.absorption,GLASS_COLORS[glassColor]);gl.uniform1f(this.locations.glassTexture,['smooth','reeded','ripple'].indexOf(glassTexture));gl.drawArrays(gl.TRIANGLES,0,6);}
 }
 
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
 let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
+const GLASS_COLORS={clear:[0,0,0],blue:[1.05,.35,.025],yellow:[.02,.15,1.1],brown:[.23,.7,1.28],red:[.04,1.1,.95]};
+const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
+let glassColor='clear',glassTexture='smooth',originalSource=null;
+function captureSettings(){return {values:Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map(id=>[id,Number($(id).value)])),glassColor,glassTexture,tool};}
+function applySettings(settings){for(const [id,def] of Object.entries(DEFAULT_SETTINGS)){$(id).value=settings.values?.[id]??def;updateRange($(id));}glassColor=Object.hasOwn(GLASS_COLORS,settings.glassColor)?settings.glassColor:'clear';glassTexture=['smooth','reeded','ripple'].includes(settings.glassTexture)?settings.glassTexture:'smooth';setTool(['paint','push','erase'].includes(settings.tool)?settings.tool:'paint');syncGlass();syncFinish();}
+function syncGlass(){document.querySelectorAll('[data-glass]').forEach(el=>{const on=el.dataset.glass===glassColor;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});document.querySelectorAll('[data-glass-texture]').forEach(el=>{const on=el.dataset.glassTexture===glassTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
+function syncFinish(){const v=['refraction','gloss','diffusion'].map(id=>Number($(id).value));document.querySelectorAll('[data-finish]').forEach(el=>{const on={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish].every((x,i)=>x===v[i]);el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
+function snapshot(){return {field:pack().slice(),settings:captureSettings()};}
+function restoreAll(){if(!ready||exporting)return;saveHistory();setPreset('clear',false);applySettings({values:DEFAULT_SETTINGS,glassColor:'clear',glassTexture:'smooth',tool:'paint'});fitCanvas(true);compare(false);dirty=true;requestRender();toast('已还原当前原图；可以撤销，已保存的预设不受影响。');}
 const pointers=new Map();let pinch=null;
 function pack(){for(let i=0;i<heights.length;i++){let j=i*4;fieldBytes[j]=Math.round(Math.min(1,heights[i])*255);fieldBytes[j+1]=Math.round((flowX[i]*0.5+0.5)*255);fieldBytes[j+2]=Math.round((flowY[i]*0.5+0.5)*255);fieldBytes[j+3]=255;}return fieldBytes;}
-function restore(bytes){for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}dirty=true;requestRender();}
-function saveHistory(){history.push(pack().slice());if(history.length>25)history.shift();future=[];updateHistory();}
+function restore(state){const bytes=state.field??state;for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}if(state.settings)applySettings(state.settings);dirty=true;requestRender();}
+function saveHistory(){history.push(snapshot());if(history.length>25)history.shift();future=[];updateHistory();}
 function updateHistory(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
-function undo(){if(!ready||!history.length)return;future.push(pack().slice());restore(history.pop());updateHistory();}
-function redo(){if(!ready||!future.length)return;history.push(pack().slice());restore(future.pop());updateHistory();}
+function undo(){if(!ready||!history.length)return;future.push(snapshot());restore(history.pop());updateHistory();}
+function redo(){if(!ready||!future.length)return;history.push(snapshot());restore(future.pop());updateHistory();}
 function requestRender(){if(queued||!ready||exporting)return;queued=true;requestAnimationFrame(()=>{queued=false;if(!ready||exporting)return;if(dirty){renderer.setField(pack(),fieldW,fieldH);dirty=false;}const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),original);if(!original){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);}});}
 function fitCanvas(reset=false){if(!ready)return;const box=$('stage').getBoundingClientRect();const scale=Math.min((box.width-44)/imageWidth,(box.height-44)/imageHeight);fitW=imageWidth*scale;fitH=imageHeight*scale;if(reset){zoom=1;panX=0;panY=0;}const wrap=$('canvasWrap');wrap.style.width=fitW+'px';wrap.style.height=fitH+'px';applyView();}
 function applyView(){panX=Math.max(-fitW*zoom/2,Math.min(fitW*zoom/2,panX));panY=Math.max(-fitH*zoom/2,Math.min(fitH*zoom/2,panY));$('canvasWrap').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;$('fit').textContent=zoom===1?'适应':Math.round(zoom*100)+'%';}
@@ -174,12 +200,12 @@ async function loadImage(src,name,sample=false){
   const scale=Math.min(1,maxTexture/image.width,maxTexture/image.height,Math.sqrt(24000000/(image.width*image.height)));
   let source=image;
   if(scale<1){source=document.createElement('canvas');source.width=Math.max(1,Math.round(image.width*scale));source.height=Math.max(1,Math.round(image.height*scale));source.getContext('2d').drawImage(image,0,0,source.width,source.height);toast('这张照片较大，已缩至 '+source.width+' × '+source.height+' 以流畅编辑。');}
-  renderer.setImage(source);imageWidth=source.width;imageHeight=source.height;
+  renderer.setImage(source);originalSource=source;imageWidth=source.width;imageHeight=source.height;
   const fieldScale=640/Math.max(imageWidth,imageHeight);fieldW=Math.max(2,Math.round(imageWidth*fieldScale));fieldH=Math.max(2,Math.round(imageHeight*fieldScale));
   const n=fieldW*fieldH;heights=new Float32Array(n);flowX=new Float32Array(n);flowY=new Float32Array(n);fieldBytes=new Uint8Array(n*4);
   history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);
   $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
-  $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();
+  $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();return true;
  }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
  finally{if(token===loadToken&&ready)$('loading').hidden=true;}
 }
@@ -198,6 +224,46 @@ async function exportImage(){
  finally{exporting=false;$('export').disabled=false;$('export').innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${icons.download}</svg>导出图片`;requestRender();}
 }
 
+let presetDBPromise,libraryUrls=[],savingPreset=false;
+function openPresetDB(){if(presetDBPromise)return presetDBPromise;presetDBPromise=new Promise((resolve,reject)=>{if(!window.indexedDB){reject(new Error('此浏览器不能保存本地预设'));return;}const request=indexedDB.open('liquid-studio-presets',1);request.onupgradeneeded=()=>request.result.createObjectStore('presets',{keyPath:'id'});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);request.onblocked=()=>reject(new Error('请关闭其他工作台标签页后重试'));}).catch(e=>{presetDBPromise=null;throw e;});return presetDBPromise;}
+async function presetTransaction(mode,action){const db=await openPresetDB();return new Promise((resolve,reject)=>{const tx=db.transaction('presets',mode);let result;const req=action(tx.objectStore('presets'));req.onsuccess=()=>{result=req.result;};tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('保存中断'));});}
+function validateSavedPreset(record){
+ if(!record||record.version!==1||!(record.image instanceof Blob)||!(record.field instanceof Uint8Array)||!Number.isInteger(record.fieldW)||!Number.isInteger(record.fieldH)||record.fieldW<2||record.fieldH<2||record.fieldW>640||record.fieldH>640||record.field.length!==record.fieldW*record.fieldH*4||!record.settings?.values)throw new Error('预设数据不完整');
+ for(const id of Object.keys(DEFAULT_SETTINGS))if(!Number.isFinite(record.settings.values[id]))throw new Error('预设参数无效');
+ return record;
+}
+function resampleField(bytes,oldW,oldH,newW,newH){const out=new Uint8Array(newW*newH*4);for(let y=0;y<newH;y++)for(let x=0;x<newW;x++){const sx=(x/(newW-1))*(oldW-1),sy=(y/(newH-1))*(oldH-1),x0=Math.floor(sx),y0=Math.floor(sy),x1=Math.min(oldW-1,x0+1),y1=Math.min(oldH-1,y0+1),tx=sx-x0,ty=sy-y0;for(let c=0;c<4;c++)out[(y*newW+x)*4+c]=Math.round(bytes[(y0*oldW+x0)*4+c]*(1-tx)*(1-ty)+bytes[(y0*oldW+x1)*4+c]*tx*(1-ty)+bytes[(y1*oldW+x0)*4+c]*(1-tx)*ty+bytes[(y1*oldW+x1)*4+c]*tx*ty);}return out;}
+function canvasBlob(canvas,type='image/png',quality=.92){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('图片保存失败')),type,quality));}
+async function saveCurrentPreset(name){
+ if(!ready||!originalSource||exporting||savingPreset)return;
+ name=name.trim();if(!name){$('presetName').focus();return;}
+ savingPreset=true;$('confirmSave').disabled=true;$('confirmSave').textContent='正在保存…';
+ try{
+  const record={id:crypto.randomUUID(),version:1,name:name.slice(0,50),createdAt:Date.now(),settings:captureSettings(),field:pack().slice(),fieldW,fieldH,sourceName:currentName};
+  const sourceCanvas=document.createElement('canvas');sourceCanvas.width=imageWidth;sourceCanvas.height=imageHeight;sourceCanvas.getContext('2d').drawImage(originalSource,0,0,imageWidth,imageHeight);
+  renderer.setField(record.field,fieldW,fieldH);dirty=false;const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),false);
+  const thumb=document.createElement('canvas'),ts=320/Math.max(imageWidth,imageHeight);thumb.width=Math.max(1,Math.round(imageWidth*ts));thumb.height=Math.max(1,Math.round(imageHeight*ts));thumb.getContext('2d').drawImage($('editor'),0,0,thumb.width,thumb.height);
+  [record.image,record.thumbnail]=await Promise.all([canvasBlob(sourceCanvas),canvasBlob(thumb,'image/jpeg',.85)]);
+  await presetTransaction('readwrite',store=>store.put(record));$('presetName').value='';await renderLibrary();toast('已保存原图与全部效果，下次可继续编辑。');
+ }catch(error){console.error(error);toast(error.name==='QuotaExceededError'?'浏览器存储空间不足，预设未保存。':('保存未完成：'+(error.message||'请检查浏览器存储权限')));}
+ finally{savingPreset=false;$('confirmSave').disabled=false;$('confirmSave').textContent='保存当前作品';requestRender();}
+}
+async function openSavedPreset(id,applyOnly=false){
+ try{
+  const record=validateSavedPreset(await presetTransaction('readonly',store=>store.get(id)));
+  if(applyOnly){if(!ready){toast('请先上传一张图片。');return;}saveHistory();}
+  else{const url=URL.createObjectURL(record.image);try{if(!await loadImage(url,record.sourceName||record.name))return;}finally{URL.revokeObjectURL(url);}}
+  const bytes=record.fieldW===fieldW&&record.fieldH===fieldH?record.field:resampleField(record.field,record.fieldW,record.fieldH,fieldW,fieldH);
+  restore({field:bytes,settings:record.settings});dirty=true;original=false;$('originalBadge').hidden=true;document.querySelectorAll('.preset').forEach(el=>{el.classList.remove('selected');el.setAttribute('aria-pressed','false');});requestRender();$('presetDialog').close();toast(applyOnly?'已将预设效果套用到当前图片。':'已恢复作品，可以继续涂抹和调整。');
+ }catch(error){console.error(error);toast('预设未能打开，当前编辑内容已保留。');}
+}
+async function renderLibrary(){
+ try{const records=await presetTransaction('readonly',store=>store.getAll());$('presetCount').textContent=records.length;libraryUrls.forEach(url=>URL.revokeObjectURL(url));libraryUrls=[];const list=$('presetList');list.replaceChildren();if(!records.length){const p=document.createElement('p');p.textContent='还没有预设，保存第一张喜欢的作品吧。';list.append(p);return;}
+  records.sort((a,b)=>b.createdAt-a.createdAt).forEach(record=>{const card=document.createElement('article');card.className='saved-card';if(record.thumbnail instanceof Blob){const img=document.createElement('img'),url=URL.createObjectURL(record.thumbnail);libraryUrls.push(url);img.src=url;img.alt=record.name;card.append(img);}const title=document.createElement('h3');title.textContent=record.name;card.append(title);const actions=document.createElement('div');actions.className='saved-actions';[['打开作品',false],['套用效果',true]].forEach(([label,apply])=>{const button=document.createElement('button');button.textContent=label;button.onclick=()=>openSavedPreset(record.id,apply);actions.append(button);});card.append(actions);list.append(card);});
+ }catch(error){$('presetList').textContent='本地预设暂时不可用，请允许网站使用浏览器存储。';}
+}
+function showLibrary(save=false){$('presetDialog').showModal();$('presetName').value=save?currentName+' · 玻璃习作':'';renderLibrary();if(save)$('presetName').focus();}
+
 try{
  renderer=new LiquidRenderer($('editor'));
  $('stage').addEventListener('pointerdown',handleDown);$('stage').addEventListener('pointermove',handleMove);$('stage').addEventListener('pointerup',handleUp);$('stage').addEventListener('pointercancel',handleUp);$('editor').addEventListener('pointerleave',()=>{$('brushCursor').hidden=true;});
@@ -208,7 +274,14 @@ try{
  document.querySelectorAll('.color-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('.liquid-adjust').forEach(el=>el.addEventListener('input',()=>{document.querySelectorAll('[data-finish]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});hasEdits=true;requestRender();}));
  document.querySelectorAll('[data-finish]').forEach(el=>el.onclick=()=>{const settings={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish];['refraction','gloss','diffusion'].forEach((id,i)=>{$(id).value=settings[i];updateRange($(id));});document.querySelectorAll('[data-finish]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});requestRender();});
- $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{setPreset('clear');toast('涂抹已清空，可撤销恢复。');};$('resetColor').onclick=()=>resetColors();
+ document.querySelectorAll('[data-glass]').forEach(el=>el.onclick=()=>{if(!ready)return;saveHistory();glassColor=el.dataset.glass;$('glassTint').value=glassColor==='clear'?0:60;$('glassClarity').value=glassColor==='clear'?100:94;$('glassReflection').value=glassColor==='clear'?12:25;['glassTint','glassClarity','glassReflection'].forEach(id=>updateRange($(id)));syncGlass();requestRender();});
+ document.querySelectorAll('[data-glass-texture]').forEach(el=>el.onclick=()=>{if(!ready)return;saveHistory();glassTexture=el.dataset.glassTexture;syncGlass();requestRender();});
+ document.querySelectorAll('.glass-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
+ document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('pointerdown',()=>{if(ready)saveHistory();}));
+ $('restoreAll').onclick=restoreAll;
+ document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
+ $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
+ $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{setPreset('clear');toast('涂抹已清空，可撤销恢复。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
  $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
  $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
  $('loadSample').onclick=()=>loadImage('assets/sample.png','示例照片',true);
@@ -217,6 +290,7 @@ try{
  document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('editor').style.cursor='none';}});window.addEventListener('blur',()=>{spaceDown=false;endStroke();pointers.clear();compare(false);});
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
  loadImage('assets/sample.png','示例照片',true);
+ renderLibrary();
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.
