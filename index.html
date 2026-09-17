@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#edf2e9"><meta name="description" content="用手涂抹透明液体，在照片中留下折射与柔光。上传、编辑、调色并导出图片。">
+  <title>涂抹 · 液体影像工作室</title><link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23dfe9d5'/%3E%3Cpath d='M16 5C13 11 7 16 7 21a9 9 0 0018 0c0-5-6-10-9-16z' fill='%234d6548'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="涂抹工作室首页"><span class="brand-mark" data-icon="droplet"></span><span class="brand-name">涂抹<span class="brand-divider">/</span><span class="brand-english">LIQUID STUDIO</span></span></a>
+    <span class="header-note">一点涂抹，自有形状。</span>
+    <button class="upload-button" id="uploadTop"><span data-icon="upload"></span>上传图片</button>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+  </header>
+  <main class="workspace">
+    <aside class="panel left-panel" aria-label="滤镜材质与涂抹工具">
+      <section class="material-section">
+        <div class="section-heading"><h2>滤镜材质</h2><span class="eyebrow">01 / MATERIAL</span></div>
+        <div class="material-card"><div class="material-art"><img src="assets/sample.png" alt="透明液体材质参考" draggable="false"><span class="material-ripple"></span><span class="active-badge"><span data-icon="check"></span> 已选用</span></div><div class="material-caption"><div><h3>液体涂抹</h3><p>通透 · 折射 · 柔光</p></div><span class="material-symbol" data-icon="droplet"></span></div></div>
+        <div class="control-heading"><span>初始状态</span><span class="muted">从这里开始</span></div>
+        <div class="preset-grid" role="group" aria-label="液体初始状态">
+          <button class="preset" data-preset="clear" aria-pressed="false"><span class="preset-swatch clear"></span>空白</button>
+          <button class="preset" data-preset="thin" aria-pressed="false"><span class="preset-swatch thin"></span>薄涂</button>
+          <button class="preset selected" data-preset="strokes" aria-pressed="true"><span class="preset-swatch streaks"></span>手作纹路</button>
+        </div>
+      </section>
+      <section class="tools-section">
+        <div class="section-heading"><h2>涂抹工具</h2><span class="eyebrow">02 / TOUCH</span></div>
+        <div class="tool-grid" role="group" aria-label="笔刷工具">
+          <button class="tool selected" data-tool="paint" aria-pressed="true"><span data-icon="brush"></span><span>涂抹</span><kbd>B</kbd></button>
+          <button class="tool" data-tool="push" aria-pressed="false"><span data-icon="hand"></span><span>推开</span><kbd>P</kbd></button>
+          <button class="tool" data-tool="erase" aria-pressed="false"><span data-icon="eraser"></span><span>擦除</span><kbd>E</kbd></button>
+        </div>
+        <label class="slider-label" for="brushSize"><span>笔刷大小</span><output id="brushSizeValue">100</output></label><input id="brushSize" type="range" min="20" max="240" value="100">
+        <label class="slider-label" for="amount"><span>涂抹厚度</span><output id="amountValue">55%</output></label><input id="amount" type="range" min="5" max="100" value="55">
+        <label class="slider-label" for="softness"><span>边缘柔和</span><output id="softnessValue">65%</output></label><input id="softness" type="range" min="15" max="100" value="65">
+      </section>
+      <div class="sidebar-note"><span data-icon="sparkle"></span><p>反复涂抹会加厚液体。<br>试着留下几处清晰的留白。</p></div>
+      <div class="sidebar-footer"><span>更多材质，慢慢加入。</span><span>VOL. 01</span></div>
+    </aside>
+    <section class="editor-panel" aria-label="图片编辑画布">
+      <div class="editor-heading"><div><h1>自由涂抹</h1><p id="canvasHint">拖动涂抹，让光线换一种经过的方式。</p></div><div class="history-buttons"><button class="icon-button" id="undo" title="撤销（Ctrl / ⌘ Z）" aria-label="撤销" disabled data-icon="undo"></button><button class="icon-button" id="redo" title="重做（Ctrl / ⌘ Shift Z）" aria-label="重做" disabled data-icon="redo"></button></div></div>
+      <div class="canvas-stage" id="stage">
+        <div class="canvas-wrap" id="canvasWrap"><canvas id="editor" aria-label="液体涂抹画布，按住鼠标或手指拖动进行编辑"></canvas><div id="brushCursor" class="brush-cursor" hidden></div></div>
+        <div class="load-overlay" id="loading"><span class="loader"></span><span>正在准备画布</span></div>
+        <div class="drop-overlay" id="dropOverlay" hidden><span data-icon="upload"></span><strong>松开，放入你的照片</strong></div>
+        <div class="canvas-badge" id="imageBadge">示例照片</div>
+        <div class="original-badge" id="originalBadge" hidden>原图</div>
+      </div>
+      <div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="clear" class="quiet-button"><span data-icon="reset"></span>清空涂抹</button></div>
+      <div class="canvas-bottom"><span><span data-icon="mouse"></span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></span><button id="loadSample">恢复示例</button></div>
+    </section>
+    <aside class="panel right-panel" aria-label="预览调色与导出">
+      <section class="preview-section"><div class="section-heading"><h2>导出预览</h2><span class="eyebrow">LIVE</span></div><div class="preview-frame"><canvas id="preview" aria-label="完整图片的实时导出预览"></canvas></div><div class="preview-meta"><span id="dimensions">—</span><span>实时同步</span></div></section>
+      <section class="adjust-section"><div class="section-heading"><h2>基础调色</h2><button class="text-button" id="resetColor">重置</button></div>
+        <label class="slider-label" for="brightness"><span>亮度</span><output id="brightnessValue">0</output></label><input class="color-adjust" id="brightness" type="range" min="-50" max="50" value="0">
+        <label class="slider-label" for="contrast"><span>对比度</span><output id="contrastValue">0</output></label><input class="color-adjust" id="contrast" type="range" min="-50" max="50" value="0">
+        <label class="slider-label" for="hue"><span>色相</span><output id="hueValue">0°</output></label><input class="color-adjust hue-range" id="hue" type="range" min="-180" max="180" value="0">
+        <label class="slider-label" for="saturation"><span>饱和度</span><output id="saturationValue">0</output></label><input class="color-adjust" id="saturation" type="range" min="-100" max="100" value="0">
+        <label class="slider-label" for="temperature"><span>色温</span><output id="temperatureValue">0</output></label><input class="color-adjust temp-range" id="temperature" type="range" min="-50" max="50" value="0">
+      </section>
+      <section class="export-section"><div class="export-options"><label>格式<select id="format"><option value="png">PNG</option><option value="jpeg">JPG</option></select></label><label>尺寸<select id="exportSize"><option value="original">原图尺寸</option><option value="1920">长边 1920</option><option value="1080">长边 1080</option></select></label></div><button class="export-button" id="export"><span data-icon="download"></span>导出图片</button><p>照片仅在你的浏览器中处理</p></section>
+    </aside>
+  </main>
+  <footer class="page-footer"><span>LIQUID STUDIO <span class="footer-rule"></span> 让每一道痕迹，都属于你。</span><span>液体涂抹 · 第一辑</span></footer>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="app.js"></script>
+</body></html>
