@@ -280,6 +280,7 @@ try{
  document.querySelectorAll('[data-glass]').forEach(el=>el.onclick=()=>{if(!ready)return;saveHistory();glassColor=el.dataset.glass;$('glassTint').value=glassColor==='clear'?0:60;$('glassClarity').value=glassColor==='clear'?100:94;$('glassReflection').value=glassColor==='clear'?12:25;['glassTint','glassClarity','glassReflection'].forEach(id=>updateRange($(id)));syncGlass();requestRender();});
  document.querySelectorAll('[data-glass-texture]').forEach(el=>el.onclick=()=>{if(!ready)return;saveHistory();glassTexture=el.dataset.glassTexture;syncGlass();requestRender();});
  document.querySelectorAll('.glass-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
+ document.querySelectorAll('.stroke-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('pointerdown',()=>{if(ready)saveHistory();}));
  $('resetStrokeAdjust').onclick=()=>{if(!ready)return;saveHistory();['strokeIntensity','strokeThickness','strokeSoftness'].forEach((id,i)=>{$(id).value=[100,100,0][i];updateRange($(id));});requestRender();toast('已重置这组涂抹的整体调整。');};
  $('restoreAll').onclick=restoreAll;
