@@ -123,6 +123,7 @@ class LiquidRenderer {
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
 let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
+let presetPreview=null;
 const GLASS_COLORS={clear:[0,0,0],blue:[1.05,.35,.025],yellow:[.02,.15,1.1],brown:[.23,.7,1.28],red:[.04,1.1,.95]};
 const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,strokeIntensity:100,strokeThickness:100,strokeSoftness:0,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
 let glassColor='clear',glassTexture='smooth',originalSource=null;
@@ -180,6 +181,22 @@ function setPreset(name,record=true){
   for(const path of paths)for(let k=1;k<path.length;k++){const a=path[k-1],b=path[k];const dx=b[0]-a[0],dy=b[1]-a[1];const steps=Math.ceil(Math.hypot(dx*fieldW,dy*fieldH)/(radius*.12));for(let s=0;s<=steps;s++)stamp(a[0]+dx*s/steps,a[1]+dy*s/steps,dx*fieldW,dy*fieldH,radius,.065);}
  }
  document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;hasEdits=record;requestRender();
+}
+function previewPreset(name){
+ if(!ready||presetPreview)return;
+ presetPreview={heights:heights.slice(),flowX:flowX.slice(),flowY:flowY.slice(),strokeCount,dirty,hasEdits,selected:[...document.querySelectorAll('.preset')].find(el=>el.classList.contains('selected'))?.dataset.preset||null};
+ setPreset(name,false);
+ hasEdits=presetPreview.hasEdits;
+}
+function endPresetPreview(){
+ if(!presetPreview)return;
+ heights.set(presetPreview.heights);flowX.set(presetPreview.flowX);flowY.set(presetPreview.flowY);strokeCount=presetPreview.strokeCount;dirty=presetPreview.dirty;hasEdits=presetPreview.hasEdits;updateStrokeCount();
+ document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===presetPreview.selected;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});
+ presetPreview=null;requestRender();
+}
+function clearStrokes(){
+ if(!ready||exporting)return;
+ saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);strokeCount=0;updateStrokeCount();dirty=true;hasEdits=true;requestRender();
 }
 function updateStrokeCount(){const el=$('strokeCount');if(el)el.textContent=strokeCount+' 笔';}
 function setTool(next){tool=next;document.querySelectorAll('.tool').forEach(el=>{const on=el.dataset.tool===tool;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});$('brushCursor').classList.toggle('erase',tool==='erase');$('canvasHint').textContent={paint:'拖动涂抹，让光线换一种经过的方式。',push:'沿着已有的液体拖动，把纹路轻轻推开。',erase:'擦去液体，让原本的清晰重新显现。'}[tool];}
@@ -278,7 +295,14 @@ try{
  $('stage').addEventListener('wheel',e=>{if(!ready)return;e.preventDefault();changeZoom(zoom*Math.exp(-e.deltaY*.001));},{passive:false});
  $('uploadTop').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>loadFile(e.target.files[0]);
  let dragDepth=0;document.body.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();dragDepth++;$('dropOverlay').hidden=false;});document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('dragleave',e=>{e.preventDefault();if(--dragDepth<=0){dragDepth=0;$('dropOverlay').hidden=true;}});document.body.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('dropOverlay').hidden=true;loadFile(e.dataTransfer.files[0]);});
- document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));document.querySelectorAll('.preset').forEach(el=>el.onclick=()=>setPreset(el.dataset.preset));
+ document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));
+ document.querySelectorAll('.preset').forEach(el=>{
+  el.onclick=()=>{endPresetPreview();setPreset(el.dataset.preset);};
+  el.addEventListener('mouseenter',()=>previewPreset(el.dataset.preset));
+  el.addEventListener('mouseleave',endPresetPreview);
+  el.addEventListener('focus',()=>previewPreset(el.dataset.preset));
+  el.addEventListener('blur',endPresetPreview);
+ });
  document.querySelectorAll('.color-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('.liquid-adjust').forEach(el=>el.addEventListener('input',()=>{document.querySelectorAll('[data-finish]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});hasEdits=true;requestRender();}));
  document.querySelectorAll('[data-finish]').forEach(el=>el.onclick=()=>{const settings={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish];['refraction','gloss','diffusion'].forEach((id,i)=>{$(id).value=settings[i];updateRange($(id));});document.querySelectorAll('[data-finish]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});requestRender();});
@@ -291,7 +315,7 @@ try{
  $('restoreAll').onclick=restoreAll;
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
- $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{setPreset('clear');toast('涂抹已清空，可撤销恢复。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
+ $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{clearStrokes();toast('涂抹已清空，玻璃材质与侧边设置已保留。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
  $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
  $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
  $('loadSample').onclick=()=>loadImage('assets/sample.png','示例照片',true);
