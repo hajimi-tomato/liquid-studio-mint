@@ -15,7 +15,7 @@ let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3600); }
 function updateRange(el) {
  el.style.setProperty('--fill', `${(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min))*100}%`);
- const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp'].includes(el.id)?'%':el.id==='hue'?'°':'');
+ const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp','strokeIntensity','strokeThickness','strokeSoftness'].includes(el.id)?'%':el.id==='hue'?'°':'');
 }
 document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); el.addEventListener('input', () => updateRange(el)); });
 
@@ -65,7 +65,7 @@ class LiquidRenderer {
     vec2 uv=v_uv;
     if(u_original>0.5){gl_FragColor=vec4(rawPhoto(uv),1.0);return;}
     vec3 color=photo(uv);
-    vec4 field=texture2D(u_field,uv); float rawH=field.r; float h=pow(max(rawH,0.0001),mix(1.0,0.38,u_strokeSoftness))*u_strokeIntensity*u_strokeThickness; h=clamp(h,0.0,1.0);
+    vec4 field=texture2D(u_field,uv); float rawH=field.r; float h=pow(max(rawH,0.0001),mix(1.0,0.38,u_strokeSoftness))*u_strokeThickness; h=clamp(h,0.0,1.0);
     if(h>0.001){
      vec2 px=1.0/u_fieldSize;
      vec2 gradient=vec2(heightAt(uv+vec2(px.x,0.0))-heightAt(uv-vec2(px.x,0.0)),heightAt(uv+vec2(0.0,px.y))-heightAt(uv-vec2(0.0,px.y)));
@@ -73,14 +73,14 @@ class LiquidRenderer {
      vec2 direction=flowLength>0.02?flow/flowLength:vec2(0.7,0.7);
      vec2 aspect=vec2(u_imageSize.y/u_imageSize.x,1.0);
      float refract=u_refraction*0.01;float gloss=u_gloss*0.01;float diffusion=u_diffusion*0.01;
-     vec2 offset=gradient*aspect*refract*2.2 + flow*aspect*h*refract*0.09;
+     vec2 offset=gradient*aspect*refract*(2.2+u_strokeThickness*1.8) + flow*aspect*h*refract*0.16;
      vec2 across=vec2(-direction.y,direction.x);
      float ridge=sin(dot(uv/aspect,across)*155.0+sin(uv.y*23.0)*0.7);
      float broadRidge=sin(dot(uv/aspect,across)*46.0+sin(uv.x*17.0)*0.9);
      offset+=across*aspect*(ridge*0.0025+broadRidge*0.005)*h*refract;
      offset=clamp(offset,vec2(-0.15),vec2(0.15));
      vec2 sampleUV=uv+offset;
-     vec2 blur=direction*aspect*h*(0.001+diffusion*0.025+u_strokeSoftness*0.035);
+     vec2 blur=direction*aspect*h*(0.002+diffusion*0.028+u_strokeThickness*0.018+u_strokeSoftness*0.07);
      vec3 glass=photo(sampleUV)*0.28;
      glass+=photo(sampleUV+blur)*0.16+photo(sampleUV-blur)*0.16;
      glass+=photo(sampleUV+blur*2.0)*0.11+photo(sampleUV-blur*2.0)*0.11;
@@ -95,8 +95,13 @@ class LiquidRenderer {
      float shadow=max(dot(gradient,vec2(0.5,0.7)),0.0)*gloss*2.7;
      glass=glass*(1.0-shadow)+vec3(1.0,0.99,0.93)*(shine+rim);
      vec3 halo=photo(sampleUV+aspect*vec2(0.014,0.0))+photo(sampleUV-aspect*vec2(0.014,0.0))+photo(sampleUV+vec2(0.0,0.014))+photo(sampleUV-vec2(0.0,0.014));
-     glass+=max(halo*0.25-0.55,vec3(0.0))*h*diffusion*0.65;
-     color=mix(color,glass,smoothstep(0.0,0.06,h));
+     glass+=max(halo*0.25-0.55,vec3(0.0))*h*(diffusion+u_strokeSoftness)*0.85;
+     float luminance=dot(glass,vec3(0.2126,0.7152,0.0722));
+     float milky=u_strokeSoftness*0.34+h*0.10;
+     glass=mix(glass,vec3(luminance)*0.82+glass*0.18,milky);
+     glass+=vec3(0.96,0.98,0.94)*h*(0.025+u_strokeSoftness*0.09);
+     float film=smoothstep(0.004,0.13,h)*clamp(u_strokeIntensity,0.0,1.5);
+     color=mix(color,glass,clamp(film,0.0,1.0));
     }
     gl_FragColor=vec4(adjust(color),1.0);
    }`;
