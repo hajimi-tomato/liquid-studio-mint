@@ -56,3 +56,18 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft Ya
 .material-preview strong{font-size:13px;display:block;margin-bottom:9px}.material-preview canvas{display:block;max-width:100%;max-height:230px;margin:auto}.material-preview span{display:block;font-size:11px;color:#6a7f6d;margin-top:9px}
 @media(min-width:861px){.workspace{min-height:820px}.canvas-stage{min-height:260px}}
 @media(max-width:860px){.motion-section{grid-column:1/-1}.board-heading{flex-wrap:wrap}.board-heading span{display:block;margin:3px 0}.canvas-stage{min-height:320px}}
+
+/* Output modes and scoped editing controls. */
+.right-panel{display:block!important}.export-tabs{display:flex;position:sticky;top:0;z-index:6;padding:10px;background:#f5f8f3;border-bottom:1px solid var(--line);gap:4px}
+.export-tabs button{flex:1;padding:12px 6px;font-size:14px;border-bottom:2px solid transparent}
+.export-tabs [aria-selected=true]{background:#e2ebdf;border-bottom-color:#42654d;color:#294e35;font-weight:600}
+.control-help,.parameter-help{color:#6c7d70;font-size:12px;line-height:1.65;margin:8px 0 14px}.parameter-help{font-size:11px;margin:4px 0 13px}
+.control-details{padding:18px 21px;border-top:1px solid var(--line)}.control-details summary{cursor:pointer;font-size:14px;font-weight:600}.control-details summary span{display:block;font-size:11px;color:#7b897c;font-weight:400;margin:5px 0 0 17px}
+.control-details[open] summary{margin-bottom:14px}.left-panel[data-active=glass] .control-details{display:none}
+.record-steps{display:flex;padding:0;list-style:none;gap:6px;margin:18px 0 22px;justify-content:space-between;font-size:12px;color:#89958a}.record-steps li{border-bottom:2px solid #e0e7dc;padding-bottom:7px;flex:1}.record-steps [aria-current=step]{border-color:#52765d;color:#33583f;font-weight:600}
+.record-guide-title{font-size:15px}.adjustment-link{display:block;padding:9px 0;margin-bottom:16px;color:#3f684b;font-size:12px;text-decoration:underline;text-underline-offset:4px}
+.motion-actions{margin-top:12px}.motion-actions button{width:100%}#stopRecording{background:#885547;color:white}.record-timer{font-variant-numeric:tabular-nums;font-size:26px!important;font-weight:600;color:#895047!important;margin:8px 0!important}
+.motion-section[data-state=recording] #recordStateLabel{color:#a34d3c}.motion-section[data-state=processing] .motion-actions{opacity:.6}
+#videoPreview{width:100%;height:100%;object-fit:contain}#recordResult{margin:8px 0 12px}#recordResult video,#recordResult img{display:block;max-height:260px;object-fit:contain;margin:0}
+.motion-note{font-size:11px!important;line-height:1.7!important}#existingStrokes:focus{outline:1px solid #7c9b80;outline-offset:-1px}
+@media(max-width:860px){.right-panel{grid-column:1/-1}.control-details{padding:16px}.export-tabs{position:relative}#imageExportPanel .export-section{display:block}.motion-section{border-top:0}}
