@@ -126,3 +126,16 @@ button.selected,.finish-options button.selected,.export-tabs [aria-selected=true
 .unified-workspace .view-controls{height:30px}.unified-workspace .view-controls .icon-button{width:24px;height:28px}.unified-workspace .zoom-value{min-width:34px}
 @media(max-width:600px){.unified-workspace{gap:4px}.unified-workspace .workspace-actions{gap:2px}.unified-workspace .canvas-toolbar{gap:0;flex-basis:auto}.unified-workspace #clear,.unified-workspace #loadSample,.unified-workspace #addImages,.unified-workspace #importFolder,.unified-workspace #compare,.unified-workspace #restoreAll{width:25px}.unified-workspace .view-controls .icon-button{width:20px}.unified-workspace .zoom-value{min-width:28px}.unified-workspace .image-strip{min-width:40px}}
 .unified-workspace #clear:before{content:'清除';font-size:10px}.unified-workspace #loadSample:before{content:'示例';font-size:10px}.unified-workspace #importFolder:before{content:'目录';font-size:10px}
+/* Atmospheric header, legible controls, and a level bottom toolbar. */
+.app-header{position:relative;background:linear-gradient(90deg,rgba(231,242,229,.97),rgba(221,237,218,.84) 40%,rgba(237,245,231,.94)),url('assets/sample.png') center 48%/cover;border-bottom:1px solid #b6cdbb}
+.brand-mark{background:#d5e6d4}.brand-name{font-size:23px;letter-spacing:.03em}.brand-english{font-size:10px;letter-spacing:.2em}.header-note{color:#456750}.app-header .library-button{background:#f2f8eed9;border-color:#b9ceba}
+.unified-workspace .workspace-actions,.unified-workspace .canvas-toolbar,.unified-workspace .import-actions{align-items:center;line-height:1}
+.unified-workspace .workspace-actions button,.unified-workspace .view-controls{height:30px;min-height:30px;vertical-align:middle;margin:0;box-sizing:border-box}
+.unified-workspace .view-controls button{height:28px;min-height:28px;display:grid;place-items:center;padding:0}
+.unified-workspace #comparePrevious{width:28px;height:30px;display:grid;place-items:center;padding:5px}
+#recordTrigger{position:fixed;z-index:150;background:#245b45;color:white;border:1px solid white;padding:12px;font-size:12px;box-shadow:0 4px 20px #173f3040}
+.record-scroll>label,#animationOptions label{display:block;font-size:12px;margin:12px 0 6px}#animationOptions{margin-top:12px;padding-top:2px;border-top:1px solid var(--line)}#motionRecommendation{font-size:11px;margin-bottom:5px}
+@media(max-width:600px){.unified-workspace #comparePrevious{width:23px}.unified-workspace .workspace-actions{gap:0}.unified-workspace .image-strip{min-width:32px}.app-header{background-position:center}}
+.unified-workspace #clear,.unified-workspace #loadSample,.unified-workspace #addImages,.unified-workspace #importFolder{position:relative;display:block;line-height:0}
+.unified-workspace #clear:before,.unified-workspace #loadSample:before,.unified-workspace #addImages:before,.unified-workspace #importFolder:before{position:absolute;inset:0;display:grid;place-items:center;line-height:1}
+.motion-section[data-mode=preset] .record-steps{display:none}.motion-section[data-mode=preset] .record-guide-title{margin-top:16px}

@@ -30,7 +30,7 @@ class LiquidRenderer {
    varying vec2 v_uv;
    uniform sampler2D u_image; uniform sampler2D u_field;
    uniform vec2 u_fieldSize; uniform vec2 u_imageSize;
-   uniform float u_original; uniform float u_brightness; uniform float u_contrast;
+   uniform float u_motionPhase; uniform float u_motionMode; uniform float u_original; uniform float u_brightness; uniform float u_contrast;
    uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
    uniform float u_refraction; uniform float u_gloss; uniform float u_diffusion;
    uniform float u_strokeIntensity; uniform float u_strokeThickness; uniform float u_strokeSoftness;
@@ -46,12 +46,13 @@ class LiquidRenderer {
     float depth=u_glassTint*.01*(1.0+abs(ridge)*warp*.4);
     vec3 transmission=exp(-u_absorption*depth*1.6);
     c*=transmission;
-    float band=exp(-pow((uv.x+uv.y*.6-.36)*7.0,2.0))*.15;
+    float band=exp(-pow((uv.x+uv.y*.6-.36-sin(u_motionPhase)*.3*step(.5,u_motionMode))*7.0,2.0))*.15;
     float edge=pow(1.0-min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y)),16.0)*.055;
     c+=(vec3(.96,.99,1.0)*band+vec3(edge)+vec3(max(ridge,0.0)*warp*.10))*u_glassReflection*.01;
     return c;
    }
-   float heightAt(vec2 uv){return texture2D(u_field,clamp(uv,vec2(0.0),vec2(1.0))).r;}
+   vec2 fieldUV(vec2 uv){float t=u_motionPhase;vec2 shift=u_motionMode<1.5?vec2(sin(t),sin(t)*.2):vec2(sin(t)*.2,sin(t));return clamp(uv+shift*.025*step(.5,u_motionMode)*(1.0-step(2.5,u_motionMode)),vec2(0.0),vec2(1.0));}
+   float heightAt(vec2 uv){uv=fieldUV(uv);return texture2D(u_field,clamp(uv,vec2(0.0),vec2(1.0))).r;}
    vec3 adjust(vec3 c){
      c+=u_brightness*0.006;
      c=(c-0.5)*(1.0+u_contrast*0.012)+0.5;
@@ -65,7 +66,7 @@ class LiquidRenderer {
     vec2 uv=v_uv;
     if(u_original>0.5){gl_FragColor=vec4(rawPhoto(uv),1.0);return;}
     vec3 color=photo(uv);
-    vec4 field=texture2D(u_field,uv); float rawH=field.r; float h=pow(max(rawH,0.0001),mix(1.0,0.38,u_strokeSoftness))*u_strokeThickness; h=clamp(h,0.0,1.0);
+    vec4 field=texture2D(u_field,fieldUV(uv)); float rawH=field.r; float h=pow(max(rawH,0.0001),mix(1.0,0.38,u_strokeSoftness))*u_strokeThickness; h=clamp(h,0.0,1.0);
     if(h>0.001){
      vec2 px=1.0/u_fieldSize;
      vec2 gradient=vec2(heightAt(uv+vec2(px.x,0.0))-heightAt(uv-vec2(px.x,0.0)),heightAt(uv+vec2(0.0,px.y))-heightAt(uv-vec2(0.0,px.y)));
@@ -89,7 +90,7 @@ class LiquidRenderer {
      glass.r=mix(glass.r,photo(sampleUV+offset*0.07).r,edge*0.68);
      glass.b=mix(glass.b,photo(sampleUV-offset*0.07).b,edge*0.68);
      vec3 normal=normalize(vec3(-gradient.x*22.0,-gradient.y*22.0,1.0));
-     float light=dot(normal,normalize(vec3(-0.45,-0.6,0.8)));
+     float light=dot(normal,normalize(vec3(-0.45+sin(u_motionPhase)*.65*step(.5,u_motionMode),-0.6+cos(u_motionPhase)*.35*step(.5,u_motionMode),0.8)));
      float shine=pow(max(light,0.0),18.0)*edge*gloss*1.6;
      float rim=pow(1.0-normal.z,1.3)*gloss*0.28;
      float shadow=max(dot(gradient,vec2(0.5,0.7)),0.0)*gloss*2.7;
@@ -111,17 +112,18 @@ class LiquidRenderer {
   gl.useProgram(this.program);
   const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const a=gl.getAttribLocation(this.program,'a_position');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
-  this.locations={}; ['image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','absorption','glassTint','glassClarity','glassReflection','glassWarp','glassTexture'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
+  this.locations={}; ['motionPhase','motionMode','image','field','fieldSize','imageSize','original','brightness','contrast','saturation','hue','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','absorption','glassTint','glassClarity','glassReflection','glassWarp','glassTexture'].forEach(n=>this.locations[n]=gl.getUniformLocation(this.program,'u_'+n));
   this.imageTexture=this.texture(0);this.fieldTexture=this.texture(1);gl.uniform1i(this.locations.image,0);gl.uniform1i(this.locations.field,1);
  }
  texture(unit){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+unit);const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t;}
  setImage(image){const gl=this.gl;gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,this.imageTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);this.width=image.width;this.height=image.height;gl.uniform2f(this.locations.imageSize,this.width,this.height);}
  setField(data,w,h){const gl=this.gl;gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,this.fieldTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,data);gl.uniform2f(this.locations.fieldSize,w,h);}
- draw(w,h,original=false,overrides={}){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','glassTint','glassClarity','glassReflection','glassWarp'].forEach(n=>gl.uniform1f(this.locations[n],Number(overrides[n]??$(n).value)/(['strokeIntensity','strokeThickness','strokeSoftness'].includes(n)?100:1)));gl.uniform3fv(this.locations.absorption,GLASS_COLORS[glassColor]);gl.uniform1f(this.locations.glassTexture,['smooth','reeded','ripple'].indexOf(glassTexture));gl.drawArrays(gl.TRIANGLES,0,6);}
+ draw(w,h,original=false,overrides={}){const gl=this.gl;if(this.canvas.width!==w||this.canvas.height!==h){this.canvas.width=w;this.canvas.height=h;}gl.viewport(0,0,w,h);gl.uniform1f(this.locations.motionPhase,overrides.motionPhase??0);gl.uniform1f(this.locations.motionMode,overrides.motionMode??0);gl.uniform1f(this.locations.original,original?1:0);['brightness','contrast','hue','saturation','temperature','refraction','gloss','diffusion','strokeIntensity','strokeThickness','strokeSoftness','glassTint','glassClarity','glassReflection','glassWarp'].forEach(n=>gl.uniform1f(this.locations[n],Number(overrides[n]??$(n).value)/(['strokeIntensity','strokeThickness','strokeSoftness'].includes(n)?100:1)));gl.uniform3fv(this.locations.absorption,GLASS_COLORS[overrides.glassColor??glassColor]);gl.uniform1f(this.locations.glassTexture,['smooth','reeded','ripple'].indexOf(overrides.glassTexture??glassTexture));gl.drawArrays(gl.TRIANGLES,0,6);}
 }
 
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0,fieldBytes,heights,flowX,flowY;
 let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
+let previousComparison=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
 
 const GLASS_COLORS={clear:[0,0,0],blue:[1.05,.35,.025],yellow:[.02,.15,1.1],brown:[.23,.7,1.28],red:[.04,1.1,.95]};
@@ -138,10 +140,10 @@ const pointers=new Map();let pinch=null;
 function pack(){for(let i=0;i<heights.length;i++){let j=i*4;fieldBytes[j]=Math.round(Math.min(1,heights[i])*255);fieldBytes[j+1]=Math.round((flowX[i]*0.5+0.5)*255);fieldBytes[j+2]=Math.round((flowY[i]*0.5+0.5)*255);fieldBytes[j+3]=255;}return fieldBytes;}
 function restore(state){const bytes=state.field??state;for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}if(state.settings)applySettings(state.settings);if(state.strokeCount!==undefined){strokeCount=state.strokeCount;updateStrokeCount();}if('selected' in state)document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===state.selected;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;requestRender();}
 function saveHistory(){history.push(snapshot());if(history.length>25)history.shift();future=[];updateHistory();}
-function updateHistory(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
+function updateHistory(){previousComparison=false;if($('comparePrevious'))$('comparePrevious').disabled=!history.length;$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function undo(){if(!ready||!history.length)return;future.push(snapshot());restore(history.pop());updateHistory();}
 function redo(){if(!ready||!future.length)return;history.push(snapshot());restore(future.pop());updateHistory();}
-function requestRender(){if(queued||!ready||exporting)return;queued=true;requestAnimationFrame(()=>{queued=false;if(!ready||exporting)return;if(dirty){renderer.setField(pack(),fieldW,fieldH);dirty=false;}const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),original);if(!original){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);updateImageThumbnail();}});}
+function requestRender(){if(queued||!ready||exporting)return;queued=true;requestAnimationFrame(()=>{queued=false;if(!ready||exporting)return;const before=previousComparison?history.at(-1):null;if(before){renderer.setField(before.field,fieldW,fieldH);}else if(dirty){renderer.setField(pack(),fieldW,fieldH);dirty=false;}const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),original,before?{...before.settings.values,glassColor:before.settings.glassColor,glassTexture:before.settings.glassTexture}:{});if(!original&&!before){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);updateImageThumbnail();}});}
 function selectExportTab(name){
  if(name==='image'&&document.getElementById('recordingSection').dataset.state==='recording'){toast('请先停止录制并生成文件，再切换到图片导出。');return;}
  document.querySelectorAll('[data-export-tab]').forEach(button=>{const on=button.dataset.exportTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;});
@@ -312,8 +314,23 @@ async function loadImage(src,name,sample=false){
  finally{if(token===loadToken&&ready)$('loading').hidden=true;}
 }
 async function loadFile(file){if(!file)return;if(!['image/png','image/jpeg','image/webp'].includes(file.type)){toast('请选择 PNG、JPG 或 WebP 图片。');return;}if(file.size>60*1024*1024){toast('请选择小于 60 MB 的图片。');return;}const url=URL.createObjectURL(file);try{await loadImage(url,file.name);}finally{URL.revokeObjectURL(url);$('fileInput').value='';}}
+
+function analyseImage(){
+ const c=document.createElement('canvas');c.width=64;c.height=64;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(originalSource,0,0,64,64);const pixels=ctx.getImageData(0,0,64,64).data;let dx=0,dy=0,sum=0,squared=0;
+ const lum=i=>pixels[i*4]*.2126+pixels[i*4+1]*.7152+pixels[i*4+2]*.0722;
+ for(let y=0;y<63;y++)for(let x=0;x<63;x++){const i=y*64+x,l=lum(i);dx+=Math.abs(l-lum(i+1));dy+=Math.abs(l-lum(i+64));sum+=l;squared+=l*l;}
+ const variance=squared/3969-(sum/3969)**2;const style=variance<1000?'breathe':dx>dy?'vertical':'horizontal';
+ const reason=style==='breathe'?'画面明暗较柔和，适合缓慢柔光呼吸':style==='vertical'?'画面竖向纹理较突出，推荐纵向流动':'画面横向层次较突出，推荐横向流光';return {source:originalSource,style,reason:reason+'（本地明暗与纹理分析，可手动更换）'};
+}
+function createAnimation(){
+ const c=document.createElement('canvas'),r=new LiquidRenderer(c),state=snapshot();r.setImage(originalSource);r.setField(state.field,fieldW,fieldH);
+ const settings={...state.settings.values,glassColor:state.settings.glassColor,glassTexture:state.settings.glassTexture};
+ return {render(progress,style,w,h){const phase=progress*Math.PI*2,pulse=(1-Math.cos(phase))*.5;r.draw(w,h,false,{...settings,motionPhase:phase,motionMode:{horizontal:1,vertical:2,breathe:3}[style],strokeThickness:settings.strokeThickness*(1-.35*pulse),strokeSoftness:Math.min(100,settings.strokeSoftness+pulse*(style==='breathe'?35:12)),refraction:settings.refraction*(1-.35*pulse),gloss:Math.min(100,settings.gloss+25*pulse),glassReflection:Math.max(12,settings.glassReflection)+15*pulse});return c;},dispose(){r.gl.getExtension('WEBGL_lose_context')?.loseContext();}};
+}
+
 function resetColors(render=true){document.querySelectorAll('.color-adjust').forEach(el=>{el.value=0;updateRange(el);});if(render)requestRender();}
-function compare(on){if(!ready)return;original=on;$('originalBadge').hidden=!on;requestRender();}
+function comparePrevious(on){if(!ready)return;previousComparison=on&&history.length>0;original=false;dirty=true;$('originalBadge').textContent='上一步';$('originalBadge').hidden=!previousComparison;requestRender();}
+function compare(on){if(!ready)return;previousComparison=false;dirty=true;$('originalBadge').textContent='原图';original=on;$('originalBadge').hidden=!on;requestRender();}
 async function exportImage(){
  if(!ready||exporting)return;exporting=true;$('export').disabled=true;$('export').textContent='正在导出…';
  try{
@@ -399,6 +416,7 @@ try{
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
  $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{clearStrokes();toast('涂抹已清空，玻璃材质与侧边设置已保留。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
+ const previousButton=$('comparePrevious');previousButton.addEventListener('pointerdown',e=>{e.preventDefault();previousButton.setPointerCapture(e.pointerId);comparePrevious(true);});['pointerup','pointercancel','lostpointercapture','blur'].forEach(event=>previousButton.addEventListener(event,()=>comparePrevious(false)));previousButton.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();comparePrevious(true);}});previousButton.addEventListener('keyup',()=>comparePrevious(false));
  $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
  $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
  $('loadSample').onclick=()=>loadImage('assets/sample.png','示例照片',true);
@@ -408,7 +426,7 @@ try{
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
  loadImage('assets/sample.png','示例照片',true);
  renderLibrary();
- import('./recording.js').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
+ import('./recording.js').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.
