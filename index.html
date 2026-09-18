@@ -85,7 +85,7 @@
         <div class="original-badge" id="originalBadge" hidden>原图</div>
       </div>
       <section class="image-board unified-workspace" aria-label="画布操作与图片工作区">
-        <div class="workspace-actions"><div class="canvas-toolbar"><button id="compare" title="按住查看原图" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="clear" title="清除全部笔画">清除全部笔画</button><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>恢复原图</button><button id="loadSample" title="恢复示例照片">恢复示例</button></div><div class="import-actions"><button id="addImages" title="添加图片（支持多选）">＋ 添加图片</button><button id="importFolder" title="导入文件夹">导入文件夹</button></div></div>
+        <div class="workspace-actions"><div class="canvas-toolbar"><button id="compare" title="按住查看原图" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><button id="comparePrevious" class="quiet-button" title="按住对比上一步修改" aria-label="按住对比上一步修改" disabled><span data-icon="undo"></span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="clear" title="清除全部笔画">清除全部笔画</button><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>恢复原图</button><button id="loadSample" title="恢复示例照片">恢复示例</button></div><div class="import-actions"><button id="addImages" title="添加图片（支持多选）">＋ 添加图片</button><button id="importFolder" title="导入文件夹">导入文件夹</button></div></div>
         <div id="imageStrip" class="image-strip"></div>
         <div class="workspace-meta"><span id="imageTotal">0 张图片</span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></div>
         <p>点击缩略图切换，保留各自编辑 · 当前会话有效，重要作品请存为预设</p>
@@ -117,7 +117,9 @@
         <div id="recordResult" hidden></div>
         <a id="downloadRecording" class="export-button" hidden>下载录制</a>
         <ol class="record-steps"><li data-step="ready" aria-current="step">1 准备</li><li data-step="recording">2 录制</li><li data-step="done">3 下载</li></ol>
-        <h2 class="record-guide-title">把参数变化录成动画</h2>
+        <h2 class="record-guide-title">让液体自己流动起来</h2>
+        <label for="motionMode">动画方式</label><select id="motionMode"><option value="preset">预设动画 · 自动生成</option><option value="manual">手动录制 · 自由调整</option></select>
+        <div id="animationOptions"><p id="motionRecommendation" class="control-help">根据画面明暗与纹理方向推荐动画。</p><button id="recommendMotion" class="text-button">重新分析画面</button><label for="animationStyle">动画形式</label><select id="animationStyle"><option value="horizontal">横向流光</option><option value="vertical">纵向流动</option><option value="breathe">柔光呼吸</option></select><label for="animationDuration">循环时长</label><select id="animationDuration"><option value="4">4 秒</option><option value="6">6 秒</option><option value="8">8 秒</option></select><button id="previewAnimation" class="adjustment-link">播放动画预览</button></div>
         <p id="recordGuide">先选格式，点击开始录制，再到左侧调整已有涂抹。结束后生成文件供预览和下载。</p>
         <button id="jumpToAdjustments" class="adjustment-link">去调整已有涂抹 →</button>
         </div>
@@ -134,6 +136,7 @@
     </aside>
   </main>
   <footer class="page-footer"><span>LIQUID STUDIO <span class="footer-rule"></span> 让每一道痕迹，都属于你。</span><span>液体涂抹 · 第一辑</span></footer>
+  <button id="recordTrigger" hidden>● 单击开始录制 · Esc 取消</button>
   <div class="toast" id="toast" role="status" hidden></div>
   <dialog id="presetDialog" class="preset-dialog" aria-labelledby="libraryTitle">
     <div class="dialog-heading"><div><h2 id="libraryTitle">我的预设</h2><p>保存原图、玻璃材质、涂抹纹路和调色，随时接着创作。</p></div><button id="closeLibrary" aria-label="关闭预设窗口">✕</button></div>
