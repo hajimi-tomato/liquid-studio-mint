@@ -2,6 +2,21 @@
 
 淡绿色三栏图片工作台。纯静态、客户端 WebGL 图像处理；照片不上传服务器。
 
+**在线体验：https://hajimi-tomato.github.io/liquid-studio-mint/**
+
+可直接把上面的链接分享给朋友，无需下载代码。
+
+## 更新 GitHub Pages
+
+源码位于 `main` 分支，公开网站从 `gh-pages` 分支发布。修改 `dist` 并提交后，运行：
+
+```sh
+git push github main
+git subtree push --prefix dist github gh-pages
+```
+
+这里的 `github` 是指向本 GitHub 仓库的 Git remote；若克隆后的 remote 名为 `origin`，请相应替换。
+
 ## 第一版
 
 - PNG/JPG/WebP 文件选择、拖拽上传；初始演示图片。
