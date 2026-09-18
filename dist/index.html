@@ -37,31 +37,17 @@
         <label class="slider-label" for="glassWarp"><span>纹理起伏</span><output id="glassWarpValue">35%</output></label><input class="glass-adjust" id="glassWarp" type="range" min="0" max="100" value="35">
       </section>
       <section class="material-section">
-        <div class="section-heading"><h2>起始纹路</h2><span class="eyebrow">01 / MATERIAL</span></div>
-        <div class="material-card"><div class="material-art"><img src="assets/sample.png" alt="透明液体材质参考" draggable="false"><span class="material-ripple"></span><span class="active-badge"><span data-icon="check"></span> 已选用</span></div><div class="material-caption"><div><h3>液体涂抹</h3><p>通透 · 折射 · 柔光</p></div><span class="material-symbol" data-icon="droplet"></span></div></div>
-        <div class="control-heading"><span>初始状态</span><span class="muted">悬停预览</span></div>
+        <div class="section-heading"><h2>01 · 起始纹路</h2><span class="eyebrow">纹路模板</span></div>
+        <div class="material-card"><div class="material-art"><img src="assets/sample.png" alt="透明液体材质参考" draggable="false"><span class="material-ripple"></span></div><div class="material-caption"><div><h3>液体涂抹</h3><p>通透 · 折射 · 柔光</p></div><span class="material-symbol" data-icon="droplet"></span></div></div>
+        <p class="control-help">悬停查看独立预览；点击替换当前笔画，可撤销。</p>
         <div class="preset-grid" role="group" aria-label="液体初始状态">
           <button class="preset" data-preset="clear" aria-pressed="false"><span class="preset-swatch clear"></span>空白</button>
           <button class="preset" data-preset="thin" aria-pressed="false"><span class="preset-swatch thin"></span>薄涂</button>
           <button class="preset selected" data-preset="strokes" aria-pressed="true"><span class="preset-swatch streaks"></span>手作纹路</button>
         </div>
       </section>
-      <section class="stroke-section" id="existingStrokes" tabindex="-1">
-        <div class="section-heading"><div><h2>调整已有涂抹</h2><p class="layer-description">常用调整 · 已有笔画会立即变化</p></div><span class="stroke-count" id="strokeCount">0 笔</span></div>
-        <div class="stroke-state"><span class="stroke-dot"></span><span>建议先调下方三个参数</span><button id="resetStrokeAdjust" class="text-button">重置</button></div>
-        <label class="slider-label" for="strokeIntensity"><span>整体强度</span><output id="strokeIntensityValue">100%</output></label><input class="stroke-adjust" aria-describedby="intensityHelp" id="strokeIntensity" type="range" min="0" max="150" value="100"><p class="parameter-help" id="intensityHelp">整体强度：让已有液体效果淡入、淡出。</p>
-        <label class="slider-label" for="strokeThickness"><span>成像厚度</span><output id="strokeThicknessValue">100%</output></label><input class="stroke-adjust" aria-describedby="thicknessHelp" id="strokeThickness" type="range" min="20" max="180" value="100"><p class="parameter-help" id="thicknessHelp">成像厚度：改变液体下方图片的扭曲与失焦。</p>
-        <label class="slider-label" for="strokeSoftness"><span>柔化程度</span><output id="strokeSoftnessValue">0%</output></label><input class="stroke-adjust" aria-describedby="softnessHelp" id="strokeSoftness" type="range" min="0" max="100" value="0"><p class="parameter-help" id="softnessHelp">柔化程度：让画面更朦胧，带有乳白透光感。</p>
-      </section>
-      <details class="liquid-section control-details"><summary>高级光学调整 <span>精细控制</span></summary>
-        <p class="control-help">作用于所有液体覆盖区域。先用常用调整确定效果，再细调折射、边缘反光和亮部扩散。</p>
-        <div class="finish-options" role="group" aria-label="液体质感预设"><button data-finish="clear" aria-pressed="false">清透</button><button class="selected" data-finish="gel" aria-pressed="true">凝胶</button><button data-finish="glow" aria-pressed="false">流光</button></div>
-        <label class="slider-label" for="refraction"><span>折射力度</span><output id="refractionValue">75%</output></label><input class="liquid-adjust" id="refraction" type="range" min="0" max="100" value="75">
-        <label class="slider-label" for="gloss"><span>边缘光泽</span><output id="glossValue">65%</output></label><input class="liquid-adjust" id="gloss" type="range" min="0" max="100" value="65">
-        <label class="slider-label" for="diffusion"><span>柔光扩散</span><output id="diffusionValue">35%</output></label><input class="liquid-adjust" id="diffusion" type="range" min="0" max="100" value="35">
-      </details>
-      <details class="tools-section control-details"><summary>画下一笔 <span>笔刷与涂抹工具</span></summary>
-        <p class="control-help">这些设置只影响接下来的操作，不会重新改变已画好的笔画。修改已有涂抹，请使用上方常用调整。</p>
+      <section class="tools-section"><div class="section-heading"><h2>02 · 涂抹工具</h2><span class="eyebrow">下一笔</span></div>
+        <p class="control-help">选择工具后在画布上拖动。下方笔刷参数仅影响接下来的笔画。</p>
         <div class="tool-grid" role="group" aria-label="笔刷工具">
           <button class="tool selected" data-tool="paint" aria-pressed="true"><span data-icon="brush"></span><span>涂抹</span><kbd>B</kbd></button>
           <button class="tool" data-tool="push" aria-pressed="false"><span data-icon="hand"></span><span>推开</span><kbd>P</kbd></button>
@@ -70,7 +56,22 @@
         <label class="slider-label" for="brushSize"><span>笔刷大小</span><output id="brushSizeValue">100</output></label><input id="brushSize" type="range" min="20" max="240" value="100">
         <label class="slider-label" for="amount"><span>每笔用量</span><output id="amountValue">72%</output></label><input id="amount" type="range" min="5" max="100" value="72">
         <label class="slider-label" for="softness"><span>笔刷边缘柔和</span><output id="softnessValue">65%</output></label><input id="softness" type="range" min="15" max="100" value="65">
+      </section>
+      <section class="stroke-section" id="existingStrokes" tabindex="-1">
+        <div class="section-heading"><div><h2>03 · 调整已有涂抹</h2><p class="layer-description">影响所有已画笔画及其下方影像</p></div><span class="stroke-count" id="strokeCount">0 笔</span></div>
+        <div class="stroke-state"><span class="stroke-dot"></span><span>已画内容</span><button id="resetStrokeAdjust" class="text-button">重置本组参数</button></div>
+        <label class="slider-label" for="strokeIntensity"><span>整体强度</span><output id="strokeIntensityValue">100%</output></label><input class="stroke-adjust" aria-describedby="intensityHelp" id="strokeIntensity" type="range" min="0" max="150" value="100"><p class="parameter-help" id="intensityHelp">让已有液体效果淡入、淡出。</p>
+        <label class="slider-label" for="strokeThickness"><span>液体厚度</span><output id="strokeThicknessValue">100%</output></label><input class="stroke-adjust" aria-describedby="thicknessHelp" id="strokeThickness" type="range" min="20" max="180" value="100"><p class="parameter-help" id="thicknessHelp">改变液体下方图片的扭曲与失焦。</p>
+        <label class="slider-label" for="strokeSoftness"><span>柔化程度</span><output id="strokeSoftnessValue">0%</output></label><input class="stroke-adjust" aria-describedby="softnessHelp" id="strokeSoftness" type="range" min="0" max="100" value="0"><p class="parameter-help" id="softnessHelp">让画面更朦胧，带有乳白透光感。</p>
+      </section>
+      <details class="liquid-section control-details"><summary>04 · 更多光线效果 <span>质感预设 · 折射 · 光泽 · 柔光</span></summary>
+        <p class="control-help">作用于所有液体覆盖区域。先用常用调整确定效果，再细调折射、边缘反光和亮部扩散。</p>
+        <div class="finish-options" role="group" aria-label="液体质感预设"><button data-finish="clear" aria-pressed="false">清透</button><button class="selected" data-finish="gel" aria-pressed="true">凝胶</button><button data-finish="glow" aria-pressed="false">流光</button></div>
+        <label class="slider-label" for="refraction"><span>折射力度</span><output id="refractionValue">75%</output></label><input class="liquid-adjust" id="refraction" type="range" min="0" max="100" value="75">
+        <label class="slider-label" for="gloss"><span>边缘光泽</span><output id="glossValue">65%</output></label><input class="liquid-adjust" id="gloss" type="range" min="0" max="100" value="65">
+        <label class="slider-label" for="diffusion"><span>柔光扩散</span><output id="diffusionValue">35%</output></label><input class="liquid-adjust" id="diffusion" type="range" min="0" max="100" value="35">
       </details>
+
       <div class="sidebar-note"><span data-icon="sparkle"></span><p>反复涂抹会加厚液体。<br>试着留下几处清晰的留白。</p></div>
       <div class="sidebar-footer"><span>更多材质，慢慢加入。</span><span>VOL. 01</span></div>
     </aside>
@@ -83,8 +84,8 @@
         <div class="canvas-badge" id="imageBadge">示例照片</div>
         <div class="original-badge" id="originalBadge" hidden>原图</div>
       </div>
-      <div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>一键复原</button></div>
-      <div class="canvas-bottom"><span><span data-icon="mouse"></span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></span><button id="clear">只清除涂抹</button><button id="loadSample">恢复示例</button></div>
+      <div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>恢复原图</button></div>
+      <div class="canvas-bottom"><span><span data-icon="mouse"></span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></span><button id="clear">清除全部笔画</button><button id="loadSample">恢复示例</button></div>
       <section class="image-board" aria-label="图片工作区">
         <div class="board-heading"><div><strong>图片工作区</strong><span id="imageTotal">0 张图片</span></div><div><button id="addImages">＋ 添加图片</button><button id="importFolder">导入文件夹</button></div></div>
         <div id="imageStrip" class="image-strip"></div>
@@ -97,18 +98,21 @@
         <button id="videoExportTab" role="tab" aria-selected="false" aria-controls="videoExportPanel" tabindex="-1" data-export-tab="video">导出视频</button>
       </div>
       <div id="imageExportPanel" role="tabpanel" aria-labelledby="imageExportTab">
+      <div class="export-scroll">
       <section class="preview-section"><div class="section-heading"><h2>导出预览</h2><span class="eyebrow">LIVE</span></div><div class="preview-frame"><canvas id="preview" aria-label="完整图片的实时导出预览"></canvas></div><div class="preview-meta"><span id="dimensions">—</span><span>实时同步</span></div></section>
-      <section class="adjust-section"><div class="section-heading"><h2>基础调色</h2><button class="text-button" id="resetColor">重置</button></div>
+      <section class="adjust-section"><div class="section-heading"><h2>基础调色</h2><button class="text-button" id="resetColor">重置调色</button></div>
         <label class="slider-label" for="brightness"><span>亮度</span><output id="brightnessValue">0</output></label><input class="color-adjust" id="brightness" type="range" min="-50" max="50" value="0">
         <label class="slider-label" for="contrast"><span>对比度</span><output id="contrastValue">0</output></label><input class="color-adjust" id="contrast" type="range" min="-50" max="50" value="0">
         <label class="slider-label" for="hue"><span>色相</span><output id="hueValue">0°</output></label><input class="color-adjust hue-range" id="hue" type="range" min="-180" max="180" value="0">
         <label class="slider-label" for="saturation"><span>饱和度</span><output id="saturationValue">0</output></label><input class="color-adjust" id="saturation" type="range" min="-100" max="100" value="0">
         <label class="slider-label" for="temperature"><span>色温</span><output id="temperatureValue">0</output></label><input class="color-adjust temp-range" id="temperature" type="range" min="-50" max="50" value="0">
       </section>
+      </div>
       <section class="export-section"><div class="export-options"><label>格式<select id="format"><option value="png">PNG</option><option value="jpeg">JPG</option></select></label><label>尺寸<select id="exportSize"><option value="original">原图尺寸</option><option value="1920">长边 1920</option><option value="1080">长边 1080</option></select></label></div><button class="export-button" id="export"><span data-icon="download"></span>导出图片</button><p>照片仅在你的浏览器中处理</p></section>
       </div>
       <div id="videoExportPanel" role="tabpanel" aria-labelledby="videoExportTab" hidden>
       <section class="motion-section" id="recordingSection" data-state="idle">
+        <div class="record-scroll">
         <div class="section-heading"><h2 id="videoPreviewHeading">实时画面</h2><span class="eyebrow" id="recordStateLabel">待录制</span></div>
         <div id="videoLiveFrame" class="preview-frame"><canvas id="videoPreview" aria-label="视频录制的实时画面预览"></canvas></div>
         <div id="recordResult" hidden></div>
@@ -117,11 +121,14 @@
         <h2 class="record-guide-title">把参数变化录成动画</h2>
         <p id="recordGuide">先选格式，点击开始录制，再到左侧调整已有涂抹。结束后生成文件供预览和下载。</p>
         <button id="jumpToAdjustments" class="adjustment-link">去调整已有涂抹 →</button>
+        </div>
+        <div class="record-controls">
         <label for="motionFormat">导出格式</label>
         <select id="motionFormat"><option value="video">视频 · 30fps</option><option value="gif">GIF 动图 · 10fps</option></select>
         <div class="motion-actions"><button id="startRecording" class="export-button">● 开始录制</button><button id="stopRecording" class="export-button" disabled hidden>■ 停止并生成文件</button></div>
         <p id="recordStatus" role="status">尚未开始录制</p><p id="recordTimer" class="record-timer" hidden>00:00</p>
         <p class="motion-note">仅记录图片，不含界面和声音。视频长边最高 1280，GIF 640。长录制建议用视频；文件保存在浏览器内存，时长受设备资源影响。切换后台会自动结束并生成文件。</p>
+        </div>
 
       </section>
       </div>
