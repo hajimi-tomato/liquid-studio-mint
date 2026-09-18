@@ -19,6 +19,10 @@ git subtree push --prefix dist github gh-pages
 
 ## 第一版
 
+- 右侧「记录光的变化」支持视频（优先 WebM，兼容浏览器回退 MP4）与循环 GIF：开始记录后可自由涂抹、调整参数，手动结束后预览、下载。
+- 视频最高长边 1280 / 30fps，GIF 640 / 10fps（繁忙时自适应降帧并保留时间间隔）；不设固定时长上限，录制文件占用浏览器内存，长录制推荐视频。切换后台会自动结束并生成文件。
+- GIF 编码在 Web Worker 中进行，使用本地随附的 [gifenc 1.0.3](https://github.com/mattdesl/gifenc)，MIT 许可证见 `dist/vendor/gifenc.LICENSE`。录制无需相机、麦克风或屏幕共享权限。
+
 - PNG/JPG/WebP 文件选择、拖拽上传；初始演示图片。
 - 透明液体涂抹、推开、擦除；笔刷大小、厚度、边缘柔和。
 - 空白、薄涂、手作纹路三个液体初始状态。

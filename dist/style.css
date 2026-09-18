@@ -25,3 +25,13 @@
 .left-panel[data-active=glass] .stroke-section{display:none}.left-panel[data-active=liquid] .stroke-section{display:block}.stroke-section{border-top:1px solid var(--line)}.layer-description{margin:4px 0 0;color:#7d8e72;font-size:12px}.stroke-count{font-size:12px;color:#617b54;background:#e8f0e1;border-radius:20px;padding:4px 8px;white-space:nowrap}.stroke-state{display:flex;align-items:center;gap:7px;border:1px solid #dce7d5;background:#f7faf3;border-radius:6px;padding:8px 9px;font-size:12px;color:#61745a}.stroke-state .text-button{margin-left:auto;font-size:12px}.stroke-dot{width:7px;height:7px;background:#789465;border-radius:50%;box-shadow:0 0 0 3px #dfeadc}.stroke-section .slider-label{margin-top:14px}
 @media(max-width:860px){.header-note{display:none}.app-header .upload-button{margin-left:auto}.library-button{font-size:12px;padding:8px}.glass-grid{gap:10px 8px}}
 @media(max-width:600px){.app-header{height:auto;min-height:70px;flex-wrap:wrap;padding:12px;gap:8px}.brand{margin-right:auto}.brand-name{font-size:21px}.app-header .upload-button{margin-left:0}.glass-section{grid-column:1/-1}.glass-grid{grid-template-columns:repeat(5,1fr);gap:8px}.glass-chip{font-size:12px;text-align:center}.glass-chip:last-child{grid-column:auto;display:block}.glass-chip:last-child>span{width:auto;margin-bottom:5px}.glass-chip>span{height:50px}.glass-section .slider-label{margin-top:11px}.saved-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.preset-dialog{padding:18px}.save-row{flex-wrap:wrap}.save-row button{width:100%}.canvas-bottom{gap:10px;flex-wrap:wrap}}
+:root { --motion-accent: #476952; }
+.motion-section { padding: 22px; border-top: 1px solid #d9e2d7; }
+.motion-section p { font-size: 12px; line-height: 1.7; color: #687967; margin: 12px 0; }
+.motion-section select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #d3dfd0; border-radius: 8px; background: #f4f8ef; }
+.motion-actions { display: flex; gap: 8px; }
+.motion-actions button { flex: 1; border-radius: 8px; padding: 10px; }
+.motion-actions button:disabled { opacity: .45; cursor: default; }
+#recordResult video, #recordResult img { width: 100%; border-radius: 8px; margin-bottom: 12px; }
+#downloadRecording { text-align: center; text-decoration: none; }
+#downloadRecording[hidden] { display: none; }
