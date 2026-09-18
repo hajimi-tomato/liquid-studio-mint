@@ -325,6 +325,7 @@ try{
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
  loadImage('assets/sample.png','示例照片',true);
  renderLibrary();
+ import('./recording.js').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.

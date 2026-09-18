@@ -94,6 +94,17 @@
         <label class="slider-label" for="temperature"><span>色温</span><output id="temperatureValue">0</output></label><input class="color-adjust temp-range" id="temperature" type="range" min="-50" max="50" value="0">
       </section>
       <section class="export-section"><div class="export-options"><label>格式<select id="format"><option value="png">PNG</option><option value="jpeg">JPG</option></select></label><label>尺寸<select id="exportSize"><option value="original">原图尺寸</option><option value="1920">长边 1920</option><option value="1080">长边 1080</option></select></label></div><button class="export-button" id="export"><span data-icon="download"></span>导出图片</button><p>照片仅在你的浏览器中处理</p></section>
+      <section class="motion-section">
+        <div class="section-heading"><h2>记录光的变化</h2><span class="eyebrow">MOTION</span></div>
+        <p>开始后自由涂抹、拖动参数，记录图片的变化。</p>
+        <label for="motionFormat">导出格式</label>
+        <select id="motionFormat"><option value="video">视频 · 30fps</option><option value="gif">GIF 动图 · 10fps</option></select>
+        <div class="motion-actions"><button id="startRecording" class="export-button">● 开始记录</button><button id="stopRecording" disabled>■ 结束记录</button></div>
+        <p id="recordStatus" role="status">准备就绪 · 手动结束，不设时长上限</p>
+        <p class="motion-note">仅记录图片，不含界面和声音。视频长边最高 1280，GIF 640。长录制建议用视频；文件保存在浏览器内存，时长受设备资源影响。切换后台会自动结束并生成文件。</p>
+        <div id="recordResult"></div>
+        <a id="downloadRecording" class="export-button" hidden>下载录制</a>
+      </section>
     </aside>
   </main>
   <footer class="page-footer"><span>LIQUID STUDIO <span class="footer-rule"></span> 让每一道痕迹，都属于你。</span><span>液体涂抹 · 第一辑</span></footer>
