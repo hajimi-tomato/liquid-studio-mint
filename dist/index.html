@@ -84,12 +84,11 @@
         <div class="canvas-badge" id="imageBadge">示例照片</div>
         <div class="original-badge" id="originalBadge" hidden>原图</div>
       </div>
-      <div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>恢复原图</button></div>
-      <div class="canvas-bottom"><span><span data-icon="mouse"></span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></span><button id="clear">清除全部笔画</button><button id="loadSample">恢复示例</button></div>
-      <section class="image-board" aria-label="图片工作区">
-        <div class="board-heading"><div><strong>图片工作区</strong><span id="imageTotal">0 张图片</span></div><div><button id="addImages">＋ 添加图片</button><button id="importFolder">导入文件夹</button></div></div>
+      <section class="image-board unified-workspace" aria-label="画布操作与图片工作区">
+        <div class="workspace-actions"><div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="clear">清除全部笔画</button><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>恢复原图</button><button id="loadSample">恢复示例</button></div><div class="import-actions"><button id="addImages">＋ 添加图片</button><button id="importFolder">导入文件夹</button></div></div>
         <div id="imageStrip" class="image-strip"></div>
-        <p>多选导入 · 点击切换，保留各自编辑 · 当前会话有效，重要作品请存为预设</p>
+        <div class="workspace-meta"><span id="imageTotal">0 张图片</span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></div>
+        <p>点击缩略图切换，保留各自编辑 · 当前会话有效，重要作品请存为预设</p>
       </section>
     </section>
     <aside class="panel right-panel" aria-label="预览调色与导出">
