@@ -105,3 +105,24 @@ button.selected,.finish-options button.selected,.export-tabs [aria-selected=true
 .workspace-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#6c8072;font-size:10px;margin-bottom:3px}
 .unified-workspace p{font-size:10px;margin:0;line-height:1.5}
 @media(max-width:860px){.unified-workspace .canvas-toolbar{flex-basis:100%}.workspace-actions{gap:6px}.workspace-meta{font-size:11px}.unified-workspace p{font-size:11px}.import-actions{margin-left:auto}}
+/* A single slim filmstrip leaves the working area to the photograph. */
+.unified-workspace{display:flex;align-items:center;gap:10px;height:56px;min-height:56px;flex-shrink:0;margin-top:6px;padding:6px 0;border-top:1px solid var(--line)}
+.unified-workspace .image-strip{order:0;flex:1;min-width:48px;min-height:0;height:44px;padding:2px;margin:0;gap:6px;overflow-y:hidden}
+.unified-workspace .image-tile{width:48px;height:38px;padding:2px;position:relative}
+.unified-workspace .image-tile canvas{width:42px;height:32px;object-fit:cover}
+.unified-workspace .image-tile span{display:none}
+.unified-workspace .workspace-actions{order:1;flex:none;flex-wrap:nowrap;gap:6px}
+.unified-workspace .canvas-toolbar{flex:none;flex-wrap:nowrap;gap:3px;min-height:32px}
+.unified-workspace .workspace-meta,.unified-workspace>p{display:none}
+.unified-workspace .import-actions{gap:3px;margin:0}
+.unified-workspace #compare>span:not([data-icon]),.unified-workspace #restoreAll{font-size:0}
+.unified-workspace #restoreAll{gap:0}
+.unified-workspace #compare,.unified-workspace #restoreAll{width:30px;height:30px;justify-content:center;padding:5px}
+.unified-workspace #clear,.unified-workspace #loadSample,.unified-workspace #addImages,.unified-workspace #importFolder{font-size:0;width:30px;height:30px;padding:0;display:grid;place-items:center}
+.unified-workspace #clear:before{content:'擦';font-size:12px}
+.unified-workspace #loadSample:before{content:'例';font-size:12px}
+.unified-workspace #addImages:before{content:'＋';font-size:20px}
+.unified-workspace #importFolder:before{content:'▱';font-size:22px}
+.unified-workspace .view-controls{height:30px}.unified-workspace .view-controls .icon-button{width:24px;height:28px}.unified-workspace .zoom-value{min-width:34px}
+@media(max-width:600px){.unified-workspace{gap:4px}.unified-workspace .workspace-actions{gap:2px}.unified-workspace .canvas-toolbar{gap:0;flex-basis:auto}.unified-workspace #clear,.unified-workspace #loadSample,.unified-workspace #addImages,.unified-workspace #importFolder,.unified-workspace #compare,.unified-workspace #restoreAll{width:25px}.unified-workspace .view-controls .icon-button{width:20px}.unified-workspace .zoom-value{min-width:28px}.unified-workspace .image-strip{min-width:40px}}
+.unified-workspace #clear:before{content:'清除';font-size:10px}.unified-workspace #loadSample:before{content:'示例';font-size:10px}.unified-workspace #importFolder:before{content:'目录';font-size:10px}
