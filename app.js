@@ -132,11 +132,11 @@ function captureSettings(){return {values:Object.fromEntries(Object.keys(DEFAULT
 function applySettings(settings){for(const [id,def] of Object.entries(DEFAULT_SETTINGS)){$(id).value=settings.values?.[id]??def;updateRange($(id));}glassColor=Object.hasOwn(GLASS_COLORS,settings.glassColor)?settings.glassColor:'clear';glassTexture=['smooth','reeded','ripple'].includes(settings.glassTexture)?settings.glassTexture:'smooth';setTool(['paint','push','erase'].includes(settings.tool)?settings.tool:'paint');syncGlass();syncFinish();}
 function syncGlass(){document.querySelectorAll('[data-glass]').forEach(el=>{const on=el.dataset.glass===glassColor;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});document.querySelectorAll('[data-glass-texture]').forEach(el=>{const on=el.dataset.glassTexture===glassTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
 function syncFinish(){const v=['refraction','gloss','diffusion'].map(id=>Number($(id).value));document.querySelectorAll('[data-finish]').forEach(el=>{const on={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish].every((x,i)=>x===v[i]);el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
-function snapshot(){return {field:pack().slice(),settings:captureSettings()};}
+function snapshot(){return {field:pack().slice(),settings:captureSettings(),strokeCount};}
 function restoreAll(){if(!ready||exporting)return;saveHistory();setPreset('clear',false);applySettings({values:DEFAULT_SETTINGS,glassColor:'clear',glassTexture:'smooth',tool:'paint'});fitCanvas(true);compare(false);dirty=true;requestRender();toast('已还原当前原图；可以撤销，已保存的预设不受影响。');}
 const pointers=new Map();let pinch=null;
 function pack(){for(let i=0;i<heights.length;i++){let j=i*4;fieldBytes[j]=Math.round(Math.min(1,heights[i])*255);fieldBytes[j+1]=Math.round((flowX[i]*0.5+0.5)*255);fieldBytes[j+2]=Math.round((flowY[i]*0.5+0.5)*255);fieldBytes[j+3]=255;}return fieldBytes;}
-function restore(state){const bytes=state.field??state;for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}if(state.settings)applySettings(state.settings);dirty=true;requestRender();}
+function restore(state){const bytes=state.field??state;for(let i=0;i<heights.length;i++){heights[i]=bytes[i*4]/255;flowX[i]=bytes[i*4+1]/127.5-1;flowY[i]=bytes[i*4+2]/127.5-1;}if(state.settings)applySettings(state.settings);if(state.strokeCount!==undefined){strokeCount=state.strokeCount;updateStrokeCount();}dirty=true;requestRender();}
 function saveHistory(){history.push(snapshot());if(history.length>25)history.shift();future=[];updateHistory();}
 function updateHistory(){$('undo').disabled=!history.length;$('redo').disabled=!future.length;}
 function undo(){if(!ready||!history.length)return;future.push(snapshot());restore(history.pop());updateHistory();}
@@ -182,18 +182,30 @@ function setPreset(name,record=true){
  }
  document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});dirty=true;hasEdits=record;requestRender();
 }
+let previewRenderer;
 function previewPreset(name){
- if(!ready||presetPreview)return;
- presetPreview={heights:heights.slice(),flowX:flowX.slice(),flowY:flowY.slice(),strokeCount,dirty,hasEdits,selected:[...document.querySelectorAll('.preset')].find(el=>el.classList.contains('selected'))?.dataset.preset||null};
- setPreset(name,false);
- hasEdits=presetPreview.hasEdits;
+ if(!ready)return;
+ const popup=$('materialPreview'),canvas=$('materialPreviewCanvas');
+ previewRenderer??=new LiquidRenderer(canvas);
+ const w=256,h=Math.max(2,Math.round(w*imageHeight/imageWidth)),bytes=new Uint8Array(w*h*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const u=x/w,v=y/h;let height=0;
+  if(name==='thin')height=.16+.06*Math.sin(u*11+v*4);
+  if(name==='strokes')for(const start of [.24,.46,.68,.90]){
+   const d=Math.abs(v+u*.35-start)/.065;
+   if(d<1&&u<.68)height=Math.max(height,(1-d*d)**2*.72);
+  }
+  const i=(y*w+x)*4;bytes[i]=height*255;bytes[i+1]=195;bytes[i+2]=90;bytes[i+3]=255;
+ }
+ previewRenderer.setImage(originalSource);previewRenderer.setField(bytes,w,h);
+ const scale=240/Math.max(imageWidth,imageHeight);previewRenderer.draw(Math.max(2,Math.round(imageWidth*scale)),Math.max(2,Math.round(imageHeight*scale)),false);
+ $('materialPreviewTitle').textContent={clear:'空白',thin:'薄涂',strokes:'手作纹路'}[name]+' · 效果示意';
+ popup.hidden=false;
+ const button=document.querySelector('[data-preset="'+name+'"]'),rect=button.getBoundingClientRect();
+ popup.style.left=Math.max(8,Math.min(innerWidth-260,rect.left))+'px';
+ popup.style.top=Math.max(8,rect.top-popup.offsetHeight-10)+'px';
 }
-function endPresetPreview(){
- if(!presetPreview)return;
- heights.set(presetPreview.heights);flowX.set(presetPreview.flowX);flowY.set(presetPreview.flowY);strokeCount=presetPreview.strokeCount;dirty=presetPreview.dirty;hasEdits=presetPreview.hasEdits;updateStrokeCount();
- document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===presetPreview.selected;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});
- presetPreview=null;requestRender();
-}
+function endPresetPreview(){ $('materialPreview').hidden=true; }
 function clearStrokes(){
  if(!ready||exporting)return;
  saveHistory();heights.fill(0);flowX.fill(0);flowY.fill(0);strokeCount=0;updateStrokeCount();dirty=true;hasEdits=true;requestRender();
@@ -217,7 +229,57 @@ function handleMove(e){cursor(e);if(!pointers.has(e.pointerId))return;pointers.s
 }
 function handleUp(e){pointers.delete(e.pointerId);endStroke();if(e.pointerType==='touch')$('brushCursor').hidden=true;}
 
+const album=[];let activeImage=-1,albumSwitch=false;
+function rememberImage(){
+ if(activeImage<0||!ready)return;
+ Object.assign(album[activeImage],{source:originalSource,state:snapshot(),heights:heights.slice(),flowX:flowX.slice(),flowY:flowY.slice(),history:[...history],future:[...future],fieldW,fieldH,currentName,hasEdits,zoom,panX,panY,selected:document.querySelector('.preset.selected')?.dataset.preset});
+}
+function renderAlbum(){
+ const list=$('imageStrip');list.replaceChildren();$('imageTotal').textContent=album.length+' 张图片 · 每张独立编辑';
+ album.forEach((item,index)=>{
+  const button=document.createElement('button');button.className='image-tile';button.classList.toggle('selected',index===activeImage);button.setAttribute('aria-pressed',String(index===activeImage));button.title=item.name;
+  const thumb=document.createElement('canvas');thumb.width=100;thumb.height=66;
+  if(item.source)thumb.getContext('2d').drawImage(item.source,0,0,100,66);
+  else {const img=new Image();img.onload=()=>thumb.getContext('2d').drawImage(img,0,0,100,66);img.src=item.url;}
+  const label=document.createElement('span');label.textContent=item.name;button.append(thumb,label);button.onclick=()=>switchImage(index);list.append(button);
+ });
+}
+async function switchImage(index){
+ if(albumSwitch||index===activeImage||exporting)return;
+ if($('startRecording').disabled){toast('请先结束录制，再切换图片。');return;}
+ rememberImage();const item=album[index];albumSwitch=true;
+ try{
+  if(!item.state){
+   if(!await loadImage(item.url,item.name))return;
+   applySettings({values:DEFAULT_SETTINGS});
+  }else{
+   originalSource=item.source;renderer.setImage(item.source);imageWidth=item.source.width;imageHeight=item.source.height;
+   fieldW=item.fieldW;fieldH=item.fieldH;fieldBytes=new Uint8Array(fieldW*fieldH*4);
+   heights=item.heights.slice();flowX=item.flowX.slice();flowY=item.flowY.slice();
+   applySettings(item.state.settings);strokeCount=item.state.strokeCount;updateStrokeCount();
+   history=[...item.history];future=[...item.future];updateHistory();currentName=item.currentName;hasEdits=item.hasEdits;original=false;
+   $('originalBadge').hidden=true;$('imageBadge').textContent=item.name;$('dimensions').textContent=imageWidth+' × '+imageHeight;
+   fitCanvas(true);zoom=item.zoom;panX=item.panX;panY=item.panY;applyView();
+   document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===item.selected;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});
+  }
+  activeImage=index;dirty=true;requestRender();rememberImage();renderAlbum();
+ }finally{albumSwitch=false;}
+}
+async function importImages(files){
+ if(albumSwitch)return;
+ const valid=[...files].filter(f=>['image/png','image/jpeg','image/webp'].includes(f.type)&&f.size<=60*1024*1024);
+ if(!valid.length){toast('请选择 PNG、JPG 或 WebP 图片，单张不超过 60 MB。');return;}
+ const first=album.length;valid.forEach(file=>album.push({name:file.webkitRelativePath||file.name,url:URL.createObjectURL(file)}));
+ renderAlbum();await switchImage(first);$('fileInput').value='';$('folderInput').value='';
+ toast('已加入 '+valid.length+' 张图片'+(valid.length<files.length?'，已跳过不支持或过大的文件。':'。'));
+}
+window.addEventListener('pagehide',()=>album.forEach(item=>{if(item.url)URL.revokeObjectURL(item.url);}));
+document.addEventListener('scroll',endPresetPreview,true);
+window.addEventListener('resize',endPresetPreview);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')endPresetPreview();});
+
 async function loadImage(src,name,sample=false){
+ if(!albumSwitch)rememberImage();
  const token=++loadToken;$('loading').hidden=false;const previousReady=ready;
  try{
   const image=new Image();image.src=src;await image.decode();if(token!==loadToken)return;
@@ -230,7 +292,7 @@ async function loadImage(src,name,sample=false){
   const n=fieldW*fieldH;heights=new Float32Array(n);flowX=new Float32Array(n);flowY=new Float32Array(n);fieldBytes=new Uint8Array(n*4);
   history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);Object.entries({strokeIntensity:100,strokeThickness:100,strokeSoftness:0}).forEach(([id,value])=>{$(id).value=value;updateRange($(id));});
   $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
-  $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();return true;
+  $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;endStroke();pointers.clear();requestRender();if(!albumSwitch){album.push({name,source:originalSource});activeImage=album.length-1;rememberImage();renderAlbum();}return true;
  }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
  finally{if(token===loadToken&&ready)$('loading').hidden=true;}
 }
@@ -293,8 +355,8 @@ try{
  renderer=new LiquidRenderer($('editor'));
  $('stage').addEventListener('pointerdown',handleDown);$('stage').addEventListener('pointermove',handleMove);$('stage').addEventListener('pointerup',handleUp);$('stage').addEventListener('pointercancel',handleUp);$('editor').addEventListener('pointerleave',()=>{$('brushCursor').hidden=true;});
  $('stage').addEventListener('wheel',e=>{if(!ready)return;e.preventDefault();changeZoom(zoom*Math.exp(-e.deltaY*.001));},{passive:false});
- $('uploadTop').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>loadFile(e.target.files[0]);
- let dragDepth=0;document.body.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();dragDepth++;$('dropOverlay').hidden=false;});document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('dragleave',e=>{e.preventDefault();if(--dragDepth<=0){dragDepth=0;$('dropOverlay').hidden=true;}});document.body.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('dropOverlay').hidden=true;loadFile(e.dataTransfer.files[0]);});
+ $('uploadTop').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>importImages(e.target.files);$('folderInput').onchange=e=>importImages(e.target.files);$('importFolder').onclick=()=>$('folderInput').click();$('addImages').onclick=()=>$('fileInput').click();
+ let dragDepth=0;document.body.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();dragDepth++;$('dropOverlay').hidden=false;});document.body.addEventListener('dragover',e=>e.preventDefault());document.body.addEventListener('dragleave',e=>{e.preventDefault();if(--dragDepth<=0){dragDepth=0;$('dropOverlay').hidden=true;}});document.body.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('dropOverlay').hidden=true;importImages(e.dataTransfer.files);});
  document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));
  document.querySelectorAll('.preset').forEach(el=>{
   el.onclick=()=>{endPresetPreview();setPreset(el.dataset.preset);};

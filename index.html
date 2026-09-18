@@ -13,7 +13,8 @@
     <button class="library-button" id="openLibrary">我的预设 <span id="presetCount">0</span></button>
     <button class="library-button" id="savePreset">存为预设</button>
     <button class="upload-button" id="uploadTop"><span data-icon="upload"></span>上传图片</button>
-    <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+    <input type="file" id="fileInput" multiple accept="image/png,image/jpeg,image/webp" hidden>
+    <input type="file" id="folderInput" webkitdirectory multiple hidden>
   </header>
   <main class="workspace">
     <aside class="panel left-panel" id="materialSidebar" data-active="glass" aria-label="滤镜材质与涂抹工具">
@@ -83,6 +84,11 @@
       </div>
       <div class="canvas-toolbar"><button id="compare" class="quiet-button"><span data-icon="split"></span><span>按住看原图</span></button><div class="view-controls"><button id="zoomOut" class="icon-button" aria-label="缩小" data-icon="minus"></button><button id="fit" class="zoom-value" title="适应画布">适应</button><button id="zoomIn" class="icon-button" aria-label="放大" data-icon="plus"></button></div><button id="restoreAll" class="quiet-button" title="移除玻璃、涂抹与调色，保留当前图片；可撤销"><span data-icon="reset"></span>一键复原</button></div>
       <div class="canvas-bottom"><span><span data-icon="mouse"></span><span id="interactionHint">拖动涂抹 · 空格拖动画布 · 双指缩放</span></span><button id="clear">只清除涂抹</button><button id="loadSample">恢复示例</button></div>
+      <section class="image-board" aria-label="图片工作区">
+        <div class="board-heading"><div><strong>图片工作区</strong><span id="imageTotal">0 张图片</span></div><div><button id="addImages">＋ 添加图片</button><button id="importFolder">导入文件夹</button></div></div>
+        <div id="imageStrip" class="image-strip"></div>
+        <p>多选导入 · 点击切换，保留各自编辑 · 当前会话有效，重要作品请存为预设</p>
+      </section>
     </section>
     <aside class="panel right-panel" aria-label="预览调色与导出">
       <section class="preview-section"><div class="section-heading"><h2>导出预览</h2><span class="eyebrow">LIVE</span></div><div class="preview-frame"><canvas id="preview" aria-label="完整图片的实时导出预览"></canvas></div><div class="preview-meta"><span id="dimensions">—</span><span>实时同步</span></div></section>
@@ -115,5 +121,6 @@
     <p class="local-note">仅保存在当前设备的浏览器中；清除网站数据会移除这些预设。</p>
     <div id="presetList" class="saved-grid" aria-live="polite"><p>还没有预设，保存第一张喜欢的作品吧。</p></div>
   </dialog>
+  <div id="materialPreview" class="material-preview" role="tooltip" hidden><strong id="materialPreviewTitle"></strong><canvas id="materialPreviewCanvas"></canvas><span>仅预览 · 点击选项应用到当前图片</span></div>
   <script type="module" src="app.js"></script>
 </body></html>
