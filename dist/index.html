@@ -53,6 +53,18 @@
           <button class="tool" data-tool="push" aria-pressed="false"><span data-icon="hand"></span><span>推开</span><kbd>P</kbd></button>
           <button class="tool" data-tool="erase" aria-pressed="false"><span data-icon="eraser"></span><span>擦除</span><kbd>E</kbd></button>
         </div>
+        <div class="control-heading paint-mode-heading"><span>涂抹模式</span><span class="muted">仅影响下一笔</span></div>
+        <div class="finish-options paint-mode-options" role="group" aria-label="涂抹模式" aria-describedby="paintModeHelp">
+          <button class="selected" data-paint-mode="fusion" aria-pressed="true">融合</button>
+          <button data-paint-mode="independent" aria-pressed="false">独立叠放</button>
+          <button data-paint-mode="squeeze" aria-pressed="false">挤压</button>
+        </div>
+        <div class="control-heading erase-mode-heading" hidden><span>擦除模式</span><span class="muted">仅影响下一笔</span></div>
+        <div class="finish-options erase-mode-options" role="group" aria-label="擦除模式" aria-describedby="paintModeHelp" hidden>
+          <button class="selected" data-erase-mode="top" aria-pressed="true">单独层擦除</button>
+          <button data-erase-mode="all" aria-pressed="false">全部层擦除</button>
+        </div>
+        <p class="control-help" id="paintModeHelp">连续涂抹会融合；切换模式不会改变已经画好的内容。</p>
         <label class="slider-label" for="brushSize"><span>笔刷大小</span><output id="brushSizeValue">100</output></label><input id="brushSize" type="range" min="20" max="240" value="100">
         <label class="slider-label" for="amount"><span>每笔用量</span><output id="amountValue">72%</output></label><input id="amount" type="range" min="5" max="100" value="72">
         <label class="slider-label" for="softness"><span>笔刷边缘柔和</span><output id="softnessValue">65%</output></label><input id="softness" type="range" min="15" max="100" value="65">
@@ -72,7 +84,7 @@
         <label class="slider-label" for="diffusion"><span>柔光扩散</span><output id="diffusionValue">35%</output></label><input class="liquid-adjust" id="diffusion" type="range" min="0" max="100" value="35">
       </details>
 
-      <div class="sidebar-note"><span data-icon="sparkle"></span><p>反复涂抹会加厚液体。<br>试着留下几处清晰的留白。</p></div>
+      <div class="sidebar-note"><span data-icon="sparkle"></span><p>融合像铺开液体，独立像叠放透明胶带。<br>擦除可选只擦上层或擦掉所有层；推开会带动碰到的所有层。</p></div>
       <div class="sidebar-footer"><span>更多材质，慢慢加入。</span><span>VOL. 01</span></div>
     </aside>
     <section class="editor-panel" aria-label="图片编辑画布">

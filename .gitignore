@@ -1,2 +1,5 @@
 .sites-runtime/
 node_modules/
+e2e/output/
+test-results/
+playwright-report/
