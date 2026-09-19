@@ -2,9 +2,15 @@
 
 淡绿色三栏图片工作台。纯静态、客户端 WebGL 图像处理；照片不上传服务器。
 
-**在线体验：https://hajimi-tomato.github.io/liquid-studio-mint/**
+## 在线使用
 
-可直接把上面的链接分享给朋友，无需下载代码。
+**[打开最新版 Liquid Studio →](https://hajimi-tomato.github.io/liquid-studio-mint/)**
+
+无需安装，直接打开链接即可使用，也可以分享给朋友。
+
+最新版已包含 [PR #1](https://github.com/hajimi-tomato/liquid-studio-mint/pull/1) 的独立叠放、挤压涂抹与分层擦除。体验路径：左侧切换「液体涂抹」→「涂抹工具」→ 选择「独立叠放」或「挤压」；选择「擦除」后可切换「单独层擦除 / 全部层擦除」。
+
+网站与主分支通过下方发布步骤同步；合并 PR 后需要重新发布才能在线体验。若仍看到旧界面，请按 Ctrl + F5（Mac：Cmd + Shift + R）刷新。
 
 ## 更新 GitHub Pages
 
