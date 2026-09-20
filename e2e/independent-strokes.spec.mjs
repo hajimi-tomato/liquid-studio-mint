@@ -7,8 +7,8 @@ async function ready(page) {
   await page.goto('/');
   await expect(page.locator('#loading')).toBeHidden({ timeout: 20_000 });
   await page.click('[data-layer=liquid]');
-  await page.locator('.material-section summary').click();
-  await page.click('[data-preset=clear]');
+  await page.locator('.more-actions summary').click();
+  await page.click('#clear');
   return errors;
 }
 

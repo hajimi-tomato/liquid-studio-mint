@@ -44,7 +44,7 @@ function setEraseMode(next){eraseMode=Object.hasOwn(ERASE_MODES,next)?next:'top'
 // The erase tool shows its own mode row; every other tool shows the paint modes.
 function syncModeHelp(){const erasing=tool==='erase';document.querySelectorAll('.paint-mode-heading,.paint-mode-options').forEach(el=>el.hidden=erasing);document.querySelectorAll('.erase-mode-heading,.erase-mode-options').forEach(el=>el.hidden=!erasing);const help=$('paintModeHelp');if(help)help.textContent=erasing?ERASE_MODES[eraseMode]:PAINT_MODES[paintMode];}
 function currentScene(){return stroke?.tx?previewStroke(stroke.tx):scene;}
-function selectPresetButton(name){document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===name;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
+function selectPresetButton(name){document.querySelectorAll('.preset').forEach(el=>{el.classList.remove('selected');el.removeAttribute('aria-pressed');});}
 function snapshot(){return {scene:currentScene(),fieldW,fieldH,settings:captureSettings(),strokeCount,selected:document.querySelector('.preset.selected')?.dataset.preset??null};}
 function restoreAll(){if(!ready||exporting)return;endStroke();saveHistory();setPreset('clear',false);applySettings({values:DEFAULT_SETTINGS,glassColor:'clear',glassTexture:'smooth',tool:'paint',paintMode});fitCanvas(true);compare(false);dirty=true;requestRender();toast('已还原当前原图；可以撤销，已保存的预设不受影响。');}
 const pointers=new Map();let pinch=null;
@@ -110,12 +110,16 @@ function previewPreset(name){
     const d=Math.abs(v+u*.35-start)/.065;
     if(d<1&&u<.68)height=Math.max(height,(1-d*d)**2*.72);
    }
+   if(name==='ripple'){const r=Math.hypot((u-.48)*1.2,v-.48);height=.32*Math.exp(-r*.9)*(1+Math.sin(r*55))*.5;}
+   if(name==='swirl'){const x=(u-.5)*1.2,y=v-.5,r=Math.hypot(x,y),angle=Math.atan2(y,x);height=.58*Math.exp(-r*2)*Math.max(0,Math.cos(angle*3-r*32))**4;}
+   if(name==='beads')for(const [cx,cy,r] of [[.24,.25,.09],[.62,.19,.055],[.48,.51,.13],[.77,.68,.08],[.19,.79,.065]]){const d=Math.hypot((u-cx)*1.2,v-cy)/r;if(d<1)height=Math.max(height,.65*(1-d*d)**1.5);}
+   if(name==='flow')for(const [cx,phase] of [[.22,0],[.5,1.4],[.78,3]]){const d=Math.abs(u-cx-.035*Math.sin(v*11+phase))/.037;if(d<1)height=Math.max(height,.65*(1-d*d)**2*(.3+.7*v));}
    const i=(y*w+x)*4;bytes[i]=height*255;bytes[i+1]=195;bytes[i+2]=90;bytes[i+3]=255;
   }
   previewRenderer.setImage(originalSource);previewRenderer.setField(bytes,w,h);
   const scale=240/Math.max(imageWidth,imageHeight);previewRenderer.draw(Math.max(2,Math.round(imageWidth*scale)),Math.max(2,Math.round(imageHeight*scale)),false,{strokeIntensity:100,strokeThickness:100,strokeSoftness:0,refraction:75,gloss:65,diffusion:35});
  }catch(error){console.error(error);return;}
- $('materialPreviewTitle').textContent={clear:'空白',thin:'薄涂',strokes:'手作纹路'}[name]+' · 效果示意';
+ $('materialPreviewTitle').textContent={clear:'空白',thin:'薄涂',strokes:'手作纹路',ripple:'水波',swirl:'旋涡',beads:'凝露',flow:'流淌'}[name]+' · 效果示意';
  popup.hidden=false;
  const button=document.querySelector('[data-preset="'+name+'"]'),rect=button.getBoundingClientRect();
  popup.style.left=Math.max(8,Math.min(innerWidth-260,rect.left))+'px';
@@ -319,7 +323,7 @@ try{
  document.querySelectorAll('[data-erase-mode]').forEach(el=>el.onclick=()=>setEraseMode(el.dataset.eraseMode));
  setPaintMode(paintMode);setEraseMode(eraseMode);syncGlass();syncFinish();
  document.querySelectorAll('.preset').forEach(el=>{
-  el.onclick=()=>{endPresetPreview();setPreset(el.dataset.preset);};
+  el.onclick=()=>previewPreset(el.dataset.preset);
   el.addEventListener('mouseenter',()=>previewPreset(el.dataset.preset));
   el.addEventListener('mouseleave',endPresetPreview);
   el.addEventListener('focus',()=>previewPreset(el.dataset.preset));
