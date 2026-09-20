@@ -1,5 +1,6 @@
+import {textureHeight} from './brush-textures.js';
 import {LiquidRenderer} from './liquid-renderer.js';
-import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js';
+import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js?v=20260920-3';
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -24,7 +25,7 @@ document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); 
 
 let renderer, ready=false, exporting=false, imageWidth=0,imageHeight=0,fieldW=0,fieldH=0;
 // `scene` is the committed, immutable layer document; an active stroke previews on top of it.
-let scene=null,paintMode='fusion',eraseMode='top';
+let scene=null,paintMode='fusion',eraseMode='top',brushTexture='clear';
 let dirty=true,queued=false,tool='paint',zoom=1,panX=0,panY=0,fitW=0,fitH=0,original=false,spaceDown=false;
 let previousComparison=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
@@ -35,8 +36,8 @@ const PAINT_MODES={fusion:'连续涂抹会融合；切换模式不会改变已�
 const ERASE_MODES={top:'只擦最先碰到的上层笔画，下方笔画保留。',all:'擦掉笔刷碰到的所有层，直接露出底图。'};
 let glassColor='clear',glassTexture='smooth',originalSource=null;
 let strokeCount=0;
-function captureSettings(){return {values:Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map(id=>[id,Number($(id).value)])),glassColor,glassTexture,tool,paintMode,eraseMode};}
-function applySettings(settings){for(const [id,def] of Object.entries(DEFAULT_SETTINGS)){$(id).value=settings.values?.[id]??def;updateRange($(id));}glassColor=Object.hasOwn(GLASS_COLORS,settings.glassColor)?settings.glassColor:'clear';glassTexture=['smooth','reeded','ripple'].includes(settings.glassTexture)?settings.glassTexture:'smooth';setPaintMode(settings.paintMode);setEraseMode(settings.eraseMode);setTool(['paint','push','erase'].includes(settings.tool)?settings.tool:'paint');syncGlass();syncFinish();}
+function captureSettings(){return {values:Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map(id=>[id,Number($(id).value)])),glassColor,glassTexture,tool,paintMode,eraseMode,brushTexture};}
+function applySettings(settings){selectPresetButton(settings.brushTexture??'clear');for(const [id,def] of Object.entries(DEFAULT_SETTINGS)){$(id).value=settings.values?.[id]??def;updateRange($(id));}glassColor=Object.hasOwn(GLASS_COLORS,settings.glassColor)?settings.glassColor:'clear';glassTexture=['smooth','reeded','ripple'].includes(settings.glassTexture)?settings.glassTexture:'smooth';setPaintMode(settings.paintMode);setEraseMode(settings.eraseMode);setTool(['paint','push','erase'].includes(settings.tool)?settings.tool:'paint');syncGlass();syncFinish();}
 function syncGlass(){document.querySelectorAll('[data-glass]').forEach(el=>{const on=el.dataset.glass===glassColor;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});document.querySelectorAll('[data-glass-texture]').forEach(el=>{const on=el.dataset.glassTexture===glassTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
 function syncFinish(){const v=['refraction','gloss','diffusion'].map(id=>Number($(id).value));document.querySelectorAll('[data-finish]').forEach(el=>{const on={clear:[42,38,8],gel:[75,65,35],glow:[90,90,80]}[el.dataset.finish].every((x,i)=>x===v[i]);el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});}
 function setPaintMode(next){paintMode=Object.hasOwn(PAINT_MODES,next)?next:'fusion';document.querySelectorAll('[data-paint-mode]').forEach(el=>{const on=el.dataset.paintMode===paintMode;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));});syncModeHelp();}
@@ -44,7 +45,7 @@ function setEraseMode(next){eraseMode=Object.hasOwn(ERASE_MODES,next)?next:'top'
 // The erase tool shows its own mode row; every other tool shows the paint modes.
 function syncModeHelp(){const erasing=tool==='erase';document.querySelectorAll('.paint-mode-heading,.paint-mode-options').forEach(el=>el.hidden=erasing);document.querySelectorAll('.erase-mode-heading,.erase-mode-options').forEach(el=>el.hidden=!erasing);const help=$('paintModeHelp');if(help)help.textContent=erasing?ERASE_MODES[eraseMode]:PAINT_MODES[paintMode];}
 function currentScene(){return stroke?.tx?previewStroke(stroke.tx):scene;}
-function selectPresetButton(name){document.querySelectorAll('.preset').forEach(el=>{el.classList.remove('selected');el.removeAttribute('aria-pressed');});}
+function selectPresetButton(name){brushTexture=['clear','thin','strokes','ripple','swirl','beads','flow'].includes(name)?name:'clear';document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===brushTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));if(on)$('presetLabel').textContent=el.textContent.trim()+'　⌄';});}
 function snapshot(){return {scene:currentScene(),fieldW,fieldH,settings:captureSettings(),strokeCount,selected:document.querySelector('.preset.selected')?.dataset.preset??null};}
 function restoreAll(){if(!ready||exporting)return;endStroke();saveHistory();setPreset('clear',false);applySettings({values:DEFAULT_SETTINGS,glassColor:'clear',glassTexture:'smooth',tool:'paint',paintMode});fitCanvas(true);compare(false);dirty=true;requestRender();toast('已还原当前原图；可以撤销，已保存的预设不受影响。');}
 const pointers=new Map();let pinch=null;
@@ -75,10 +76,10 @@ function paintSegment(a,b,pressure=1){
  try{
   if(stroke.tool==='push')changed=paintStroke(stroke.tx,{x:b.x,y:b.y,dx,dy,r,amount:1,softness});
   else{const distance=Math.hypot(dx*fieldW,dy*fieldH);const steps=Math.max(1,Math.ceil(distance/Math.max(1,r*.14)));const amount=Number($('amount').value)/100*.17*pressure;
-   for(let i=1;i<=steps;i++)changed=paintStroke(stroke.tx,{x:a.x+dx*i/steps,y:a.y+dy*i/steps,dx,dy,r,amount,softness})||changed;}
+   for(let i=1;i<=steps;i++)changed=paintStroke(stroke.tx,{x:a.x+dx*i/steps,y:a.y+dy*i/steps,dx,dy,r,amount,softness,texture:stroke.texture})||changed;}
  }catch(error){console.error(error);toast('这一笔无法继续：'+error.message);endStroke();return;}
  if(!changed)return;
- if(!stroke.changed){stroke.changed=true;pushHistory(stroke.before);if(stroke.tool==='paint'){strokeCount++;updateStrokeCount();}hasEdits=true;selectPresetButton(null);}
+ if(!stroke.changed){stroke.changed=true;pushHistory(stroke.before);if(stroke.tool==='paint'){strokeCount++;updateStrokeCount();}hasEdits=true;}
  dirty=true;
 }
 function presetScene(name){
@@ -104,16 +105,7 @@ function previewPreset(name){
   previewRenderer??=new LiquidRenderer(canvas);
   const w=256,h=Math.max(2,Math.round(w*imageHeight/imageWidth)),bytes=new Uint8Array(w*h*4);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-   const u=x/w,v=y/h;let height=0;
-   if(name==='thin')height=.16+.06*Math.sin(u*11+v*4);
-   if(name==='strokes')for(const start of [.24,.46,.68,.90]){
-    const d=Math.abs(v+u*.35-start)/.065;
-    if(d<1&&u<.68)height=Math.max(height,(1-d*d)**2*.72);
-   }
-   if(name==='ripple'){const r=Math.hypot((u-.48)*1.2,v-.48);height=.32*Math.exp(-r*.9)*(1+Math.sin(r*55))*.5;}
-   if(name==='swirl'){const x=(u-.5)*1.2,y=v-.5,r=Math.hypot(x,y),angle=Math.atan2(y,x);height=.58*Math.exp(-r*2)*Math.max(0,Math.cos(angle*3-r*32))**4;}
-   if(name==='beads')for(const [cx,cy,r] of [[.24,.25,.09],[.62,.19,.055],[.48,.51,.13],[.77,.68,.08],[.19,.79,.065]]){const d=Math.hypot((u-cx)*1.2,v-cy)/r;if(d<1)height=Math.max(height,.65*(1-d*d)**1.5);}
-   if(name==='flow')for(const [cx,phase] of [[.22,0],[.5,1.4],[.78,3]]){const d=Math.abs(u-cx-.035*Math.sin(v*11+phase))/.037;if(d<1)height=Math.max(height,.65*(1-d*d)**2*(.3+.7*v));}
+   const height=textureHeight(name,x/w,y/h);
    const i=(y*w+x)*4;bytes[i]=height*255;bytes[i+1]=195;bytes[i+2]=90;bytes[i+3]=255;
   }
   previewRenderer.setImage(originalSource);previewRenderer.setField(bytes,w,h);
@@ -141,7 +133,7 @@ function handleDown(e){if(!ready||exporting||e.button>1)return;e.preventDefault(
  if(e.target!==$('editor'))return;
  endStroke();const before=snapshot();let tx;
  try{tx=beginStroke(scene,{tool,mode:paintMode,eraseMode});}catch(error){console.error(error);toast('无法开始这一笔：'+error.message);return;}
- const p=coords(e);stroke={point:p,pointerId:e.pointerId,tool,mode:paintMode,tx,before,changed:false};original=false;$('originalBadge').hidden=true;
+ const p=coords(e);stroke={point:p,pointerId:e.pointerId,tool,mode:paintMode,texture:brushTexture,tx,before,changed:false};original=false;$('originalBadge').hidden=true;
  if(tool!=='push')paintSegment(p,p,e.pointerType==='pen'?Math.max(.2,e.pressure):1);requestRender();cursor(e);
 }
 function handleMove(e){cursor(e);if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -297,7 +289,7 @@ async function openSavedPreset(id,applyOnly=false){
   if(applyOnly){if(!ready){toast('请先上传一张图片。');return;}saveHistory();}
   else{const url=URL.createObjectURL(record.image);try{if(!await loadImage(url,record.sourceName||record.name))return;}finally{URL.revokeObjectURL(url);}}
   const doc=documentFromState(stored,fieldW,fieldH);
-  restore({scene:doc,settings:record.settings,strokeCount:record.strokeCount??(doc.layers.length?1:0)});original=false;$('originalBadge').hidden=true;selectPresetButton(null);requestRender();$('presetDialog').close();toast(applyOnly?'已将预设效果套用到当前图片。':'已恢复作品，可以继续涂抹和调整。');
+  restore({scene:doc,settings:record.settings,strokeCount:record.strokeCount??(doc.layers.length?1:0)});original=false;$('originalBadge').hidden=true;requestRender();$('presetDialog').close();toast(applyOnly?'已将预设效果套用到当前图片。':'已恢复作品，可以继续涂抹和调整。');
  }catch(error){console.error(error);toast('预设未能打开，当前编辑内容已保留。');}
 }
 async function renderLibrary(){
@@ -323,7 +315,7 @@ try{
  document.querySelectorAll('[data-erase-mode]').forEach(el=>el.onclick=()=>setEraseMode(el.dataset.eraseMode));
  setPaintMode(paintMode);setEraseMode(eraseMode);syncGlass();syncFinish();
  document.querySelectorAll('.preset').forEach(el=>{
-  el.onclick=()=>previewPreset(el.dataset.preset);
+  el.onclick=()=>{endStroke();selectPresetButton(el.dataset.preset);endPresetPreview();};
   el.addEventListener('mouseenter',()=>previewPreset(el.dataset.preset));
   el.addEventListener('mouseleave',endPresetPreview);
   el.addEventListener('focus',()=>previewPreset(el.dataset.preset));
