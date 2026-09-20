@@ -369,3 +369,13 @@ test('large-grid integration: import, independent self-overlap, erase, resize an
   assert.deepEqual(restored.layers.map(l => l.id), painted.layers.map(l => l.id));
   assert.equal(restored.layers[0], resized.layers[0]);
 });
+
+test('chosen texture changes only the new stroke and leaves committed layers intact',()=>{
+ const base=paint(createDocument(64,64),'independent',{r:12});const saved=base.layers[0].data.slice();
+ const results=new Set();
+ for(const texture of ['clear','thin','strokes','ripple','swirl','beads','flow']){
+  const next=paint(base,'independent',{r:22,texture});assert.deepEqual(next.layers[0].data,saved);
+  results.add(Buffer.from(expandLayer(next.layers[1],64,64)).toString('base64'));
+ }
+ assert.equal(results.size,7);
+});

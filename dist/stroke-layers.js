@@ -1,3 +1,4 @@
+import {textureDeposit} from './brush-textures.js';
 // Committed layers/arrays are read-only by contract. Only transaction-owned
 // Float32 working storage is mutable; history and previews share old layers.
 const MIN_SIZE = 2;
@@ -245,7 +246,7 @@ function stamp(tx, work, input, bounds, block = null) {
     } else {
       const grain = 1 + .07 * Math.sin((x * -fy + y * fx) * .28);
       const room = block ? Math.max(0, 1 - block(i) * 1.6) : 1;
-      changed = writePixel(work, i, [Math.min(.97, old + fall * input.amount * grain * room * (1 - old * .45)),
+      changed = writePixel(work, i, [Math.min(.97, old + fall * input.amount * textureDeposit(input.texture,x/w,y/h) * grain * room * (1 - old * .45)),
         work[i + 1] * (1 - fall * .35) + fx * fall * .35,
         work[i + 2] * (1 - fall * .35) + fy * fall * .35]) || changed;
     }

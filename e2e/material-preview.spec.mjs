@@ -5,7 +5,7 @@ test('texture previews never change artwork or undo history',async({page})=>{
  await page.locator('.material-section summary').click();
  const before=await pixels(page);
  await page.locator('[data-preset=thin]').hover();await expect(page.locator('#materialPreview')).toBeVisible();
- await page.locator('[data-preset=thin]').click();await page.waitForTimeout(120);
+ await page.locator('[data-preset=thin]').click();await page.waitForTimeout(120);await expect(page.locator('[data-preset=thin]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#presetLabel')).toContainText('薄涂');await page.locator('[data-preset=ripple]').hover();await expect(page.locator('[data-preset=thin]')).toHaveAttribute('aria-pressed','true');
  expect(await pixels(page)===before).toBe(true);await expect(page.locator('#undo')).toBeDisabled();
  const options=page.locator('[data-preset]');expect(await options.count()).toBeGreaterThanOrEqual(7);
  const previews=new Set();
@@ -26,4 +26,15 @@ test('visible reset is undoable and previous comparison is a hold action',async(
  await page.click('#undo');await page.waitForTimeout(120);expect(await pixels(page)===edited).toBe(true);
  const control=page.getByRole('button',{name:'按住对比上一步',exact:true});await control.focus();await page.keyboard.down('Space');await expect(page.locator('#originalBadge')).toBeVisible();await page.keyboard.up('Space');await expect(page.locator('#originalBadge')).toBeHidden();
  await page.setViewportSize({width:390,height:844});await expect(control).toBeInViewport();await expect(page.locator('#restoreAll')).toBeInViewport();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);
+});
+
+test('selected texture drives new strokes and stays selected after drawing',async({page})=>{
+ await page.goto('/');await expect(page.locator('#loading')).toBeHidden();await page.click('#restoreAll');await page.locator('.material-section summary').click();
+ const baseline=await pixels(page),painted=[];
+ for(const name of ['thin','ripple','beads']){
+  await page.locator('[data-preset='+name+']').click();expect(await pixels(page)===baseline).toBe(true);
+  const r=await page.locator('#editor').boundingBox();await page.mouse.move(r.x+r.width*.25,r.y+r.height*.5);await page.mouse.down();await page.mouse.move(r.x+r.width*.75,r.y+r.height*.5,{steps:20});await page.mouse.up();await page.waitForTimeout(100);
+  painted.push(await pixels(page));await expect(page.locator('[data-preset='+name+']')).toHaveAttribute('aria-pressed','true');await page.click('#undo');await page.waitForTimeout(100);expect(await pixels(page)===baseline).toBe(true);
+ }
+ expect(new Set(painted).size).toBe(3);
 });
