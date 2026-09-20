@@ -57,7 +57,7 @@ function redo(){if(!ready||!future.length)return;endStroke();history.push(snapsh
 function requestRender(){if(queued||!ready||exporting)return;queued=true;requestAnimationFrame(()=>{queued=false;if(!ready||exporting)return;const before=previousComparison?history.at(-1):null;
  try{if(before){renderer.setScene(before.scene);dirty=true;}else if(dirty){renderer.setScene(currentScene());dirty=false;}const scale=Math.min(1,1536/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),original,before?{...before.settings.values,glassColor:before.settings.glassColor,glassTexture:before.settings.glassTexture}:{});}
  catch(error){console.error(error);toast('画面暂时无法刷新：'+error.message);return;}
- if(!original&&!before){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);updateImageThumbnail();}});}
+ if(!original&&!before){const p=$('preview');const ps=440/Math.max(imageWidth,imageHeight),pw=Math.max(1,Math.round(imageWidth*ps)),ph=Math.max(1,Math.round(imageHeight*ps));if(p.width!==pw||p.height!==ph){p.width=pw;p.height=ph;}p.getContext('2d').drawImage($('editor'),0,0,pw,ph);updateImageThumbnail();document.dispatchEvent(new CustomEvent('studio:render',{detail:{width:imageWidth,height:imageHeight,name:currentName}}));}});}
 function selectExportTab(name){
  if(name==='image'&&document.getElementById('recordingSection').dataset.state==='recording'){toast('请先停止录制并生成文件，再切换到图片导出。');return;}
  document.querySelectorAll('[data-export-tab]').forEach(button=>{const on=button.dataset.exportTab===name;button.setAttribute('aria-selected',String(on));button.tabIndex=on?0:-1;});
@@ -162,7 +162,7 @@ function updateImageThumbnail(){
  const visible=$('imageStrip').children[activeImage]?.querySelector('canvas');if(visible)visible.getContext('2d').drawImage(thumb,0,0);
 }
 function renderAlbum(){
- const list=$('imageStrip');list.replaceChildren();$('imageTotal').textContent=album.length+' 张图片 · 每张独立编辑';
+ const list=$('imageStrip');list.replaceChildren();$('imageTotal').textContent=album.length+' 张';
  album.forEach((item,index)=>{
   const button=document.createElement('button');button.className='image-tile';button.classList.toggle('selected',index===activeImage);button.setAttribute('aria-pressed',String(index===activeImage));button.title=item.name;
   const thumb=document.createElement('canvas');thumb.width=100;thumb.height=66;
@@ -252,7 +252,7 @@ async function exportImage(){
   const format=$('format').value;const blob=await new Promise(resolve=>$('editor').toBlob(resolve,'image/'+format,.95));if(!blob)throw new Error('Empty image');
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=currentName+'-液体涂抹.'+(format==='jpeg'?'jpg':'png');document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast(`已导出 ${w} × ${h} 的${format==='jpeg'?' JPG':' PNG'} 图片`);
  }catch(error){console.error(error);toast('导出未完成：'+(error.message||'请尝试较小的导出尺寸。'));}
- finally{exporting=false;dirty=true;$('export').disabled=false;$('export').innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${icons.download}</svg>导出图片`;requestRender();}
+ finally{exporting=false;dirty=true;$('export').disabled=false;$('export').innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true">${icons.download}</svg>下载图片`;requestRender();}
 }
 
 let presetDBPromise,libraryUrls=[],savingPreset=false;
@@ -309,7 +309,7 @@ try{
   button.onclick=()=>selectExportTab(button.dataset.exportTab);
   button.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const name=e.key==='Home'?'image':e.key==='End'?'video':button.dataset.exportTab==='image'?'video':'image';selectExportTab(name);document.querySelector('[data-export-tab][aria-selected=true]').focus();}};
  });
- $('jumpToAdjustments').onclick=()=>{document.querySelector('[data-layer=liquid]').click();$('existingStrokes').scrollIntoView({block:'nearest',behavior:'smooth'});$('existingStrokes').focus({preventScroll:true});};
+ $('jumpToAdjustments').onclick=()=>{document.querySelector('[data-layer=liquid]').click();document.dispatchEvent(new CustomEvent('studio:panel',{detail:'effect'}));$('existingStrokes').scrollIntoView({block:'nearest',behavior:'smooth'});$('existingStrokes').focus({preventScroll:true});};
  $('stage').addEventListener('pointerdown',handleDown);$('stage').addEventListener('pointermove',handleMove);$('stage').addEventListener('pointerup',handleUp);$('stage').addEventListener('pointercancel',handleUp);$('stage').addEventListener('lostpointercapture',e=>{if(stroke?.tx&&e.pointerId===stroke.pointerId)handleUp(e);});$('editor').addEventListener('pointerleave',()=>{$('brushCursor').hidden=true;});
  $('stage').addEventListener('wheel',e=>{if(!ready)return;e.preventDefault();changeZoom(zoom*Math.exp(-e.deltaY*.001));},{passive:false});
  $('uploadTop').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>importImages(e.target.files);$('folderInput').onchange=e=>importImages(e.target.files);$('importFolder').onclick=()=>$('folderInput').click();$('addImages').onclick=()=>$('fileInput').click();
@@ -317,7 +317,7 @@ try{
  document.querySelectorAll('.tool').forEach(el=>el.onclick=()=>setTool(el.dataset.tool));
  document.querySelectorAll('[data-paint-mode]').forEach(el=>el.onclick=()=>setPaintMode(el.dataset.paintMode));
  document.querySelectorAll('[data-erase-mode]').forEach(el=>el.onclick=()=>setEraseMode(el.dataset.eraseMode));
- setPaintMode(paintMode);setEraseMode(eraseMode);
+ setPaintMode(paintMode);setEraseMode(eraseMode);syncGlass();syncFinish();
  document.querySelectorAll('.preset').forEach(el=>{
   el.onclick=()=>{endPresetPreview();setPreset(el.dataset.preset);};
   el.addEventListener('mouseenter',()=>previewPreset(el.dataset.preset));
@@ -350,7 +350,7 @@ function typingTarget(el){return el?.isContentEditable||el?.tagName==='TEXTAREA'
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
  loadImage('assets/sample.png','示例照片',true);
  renderLibrary();
- import('./recording.js').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
+ import('./recording.js?v=studio-20260920').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.
