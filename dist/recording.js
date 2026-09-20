@@ -3,15 +3,15 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  const $ = id => document.getElementById(id);
  let session=null, resultURL=null, armed=false, animationPreview=null, previewStarted=0, recommendedSource=null;
  const mode=$("motionMode"), trigger=$("recordTrigger");
- function stopPreview(){animationPreview?.dispose();animationPreview=null;$("previewAnimation").textContent="播放动画预览";}
+ function stopPreview(){animationPreview?.dispose();animationPreview=null;$("previewAnimation").textContent="▷";$("previewAnimation").setAttribute("aria-label","播放预览");$("previewAnimation").setAttribute("aria-pressed","false");}
  function cancelArm(){const wasArmed=armed;armed=false;trigger.hidden=true;if(wasArmed&&!session)setState("idle");}
- function recommend(force=false){if(!isReady())return;const result=analyseImage();if(!force&&recommendedSource===result.source)return;recommendedSource=result.source;$("animationStyle").value=result.style;$("motionRecommendation").textContent=result.reason;}
+ function recommend(force=false){if(!isReady())return;const result=analyseImage();if(!force&&recommendedSource===result.source)return;recommendedSource=result.source;$("animationStyle").value=result.style;$("animationStyle").dataset.recommended=result.style;$("motionRecommendation").textContent=result.reason;document.dispatchEvent(new Event("studio:recording"));}
  const format=$('motionFormat'), start=$('startRecording'), stop=$('stopRecording'), status=$('recordStatus');
  function setState(state){
   $('recordingSection').dataset.state=state;$('recordingSection').dataset.mode=mode.value;
   const recording=state==='recording',processing=state==='processing',done=state==='done';
   start.hidden=recording||processing;stop.hidden=!recording&&!processing;
-  start.textContent=armed?'取消准备':mode.value==='preset'?'生成并下载动画':'准备手动录制';
+  start.textContent=armed?'确认开始':mode.value==='preset'?'生成并下载':'准备录制';
   stop.textContent=processing?'正在生成文件…':mode.value==='preset'?'■ 停止并导出当前片段':'■ 停止并生成文件';
   $('recordTimer').hidden=!recording;
   $('recordStateLabel').textContent={idle:'待录制',recording:'录制中',processing:'生成中',done:'已完成',error:'未完成'}[state];
@@ -21,6 +21,7 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
   $('downloadRecording').hidden=!done;
   $('recordGuide').textContent=armed?'移动到想操作的位置，单击跟随按钮开始录制；Esc 取消。':mode.value==='preset'?(recording?'正在自动演绎液体效果，完成后下载。':'选择动画形式并预览，点击生成后自动下载。原有笔画和参数保持不变。'):recording?'现在拖动左侧参数，变化会被录进去。满意后点击停止并生成文件。':processing?'正在整理录制内容，请稍候。':done?'可以先播放检查，再点击下载。重新录制会生成新的结果。':'先选格式，点击开始录制，再到左侧调整已有涂抹。结束后生成文件供预览和下载。';
   $('animationOptions').hidden=mode.value!=='preset';$('jumpToAdjustments').hidden=mode.value==='preset';mode.disabled=recording||processing;['animationStyle','animationDuration','recommendMotion','previewAnimation'].forEach(id=>$(id).disabled=recording||processing);
+  document.dispatchEvent(new Event('studio:recording'));
   document.querySelectorAll('[data-step]').forEach(el=>{if(el.dataset.step===(done?'done':recording||processing?'recording':'ready'))el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
  }
  // Independent live preview remains visible before capture and during parameter edits.
@@ -30,13 +31,14 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
    if(p.width!==w||p.height!==h){p.width=w;p.height=h;}
    const source=session?.auto?session.surface:animationPreview?animationPreview.render(((performance.now()-previewStarted)/1000%Number($('animationDuration').value))/Number($('animationDuration').value),$('animationStyle').value,w,h):canvas;p.getContext('2d').drawImage(source,0,0,w,h);
   }
+  if(animationPreview){const duration=Number($('animationDuration').value),elapsed=(performance.now()-previewStarted)/1000%duration;$('playback').style.setProperty('--progress',elapsed/duration*100+'%');$('playback').querySelector('span').textContent='00:'+String(Math.floor(elapsed)).padStart(2,'0');}
   previewFrame=requestAnimationFrame(livePreview);
  }
  let previewFrame=requestAnimationFrame(livePreview);setState('idle');
  const supported = typeof MediaRecorder !== 'undefined' && typeof canvas.captureStream === 'function';
  const mime = supported ? ['video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m)) : null;
  if(!mime) { format.options[0].disabled=true; format.value='gif'; }
- else format.options[0].textContent=mime.includes('mp4')?'视频 MP4 · 30fps':'视频 WebM · 30fps';
+ else format.options[0].textContent=mime.includes('mp4')?'MP4':'WebM';
  function cleanup(s) {
   clearInterval(s.timer); s.stream?.getTracks().forEach(t=>t.stop()); s.worker?.terminate();
   s.animation?.dispose();session=null; start.disabled=false; stop.disabled=true; format.disabled=false;
@@ -104,13 +106,13 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  };
 
  start.onclick=e=>{
-  if(session)return;if(armed){cancelArm();return;}if(!isReady()){notify('请先等待图片加载完成。');return;}
+  if(session)return;if(armed){begin();return;}if(!isReady()){notify('请先等待图片加载完成。');return;}
   if(mode.value==='preset'){begin();return;}
-  stopPreview();armed=true;trigger.hidden=false;setState('idle');positionTrigger(e.clientX||innerWidth/2,e.clientY||innerHeight/2);trigger.focus({preventScroll:true});
+  stopPreview();armed=true;trigger.hidden=true;setState('idle');start.focus();
  };
  function positionTrigger(x,y){trigger.style.left=Math.max(8,Math.min(innerWidth-230,x-100))+'px';trigger.style.top=Math.max(8,Math.min(innerHeight-48,y-16))+'px';}
- document.addEventListener('pointermove',e=>{if(armed&&e.target!==trigger)positionTrigger(e.clientX,e.clientY);});
- document.addEventListener('pointerdown',e=>{if(armed&&e.target.closest('#canvasWrap')){e.preventDefault();e.stopImmediatePropagation();}},true);
+ document.addEventListener('pointermove',e=>{if(armed&&!trigger.hidden&&e.target!==trigger)positionTrigger(e.clientX,e.clientY);});
+ document.addEventListener('pointerdown',e=>{if(armed&&!trigger.hidden&&e.target.closest('#canvasWrap')){e.preventDefault();e.stopImmediatePropagation();}},true);
  trigger.onclick=e=>{e.stopPropagation();begin();};
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){cancelArm();stopPreview();}});
  mode.onchange=()=>{cancelArm();stopPreview();setState('idle');};
@@ -118,7 +120,7 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  $('videoExportTab').addEventListener('click',()=>{if(!session)recommend();});
  $('imageExportTab').addEventListener('click',()=>{cancelArm();stopPreview();});
  $('animationStyle').onchange=stopPreview;$('animationDuration').onchange=stopPreview;
- $('previewAnimation').onclick=()=>{if(animationPreview){stopPreview();return;}if(!isReady())return;animationPreview=createAnimation();previewStarted=performance.now();setState('idle');$('previewAnimation').textContent='停止动画预览';};
+ $('previewAnimation').onclick=()=>{if(animationPreview){stopPreview();return;}if(!isReady())return;animationPreview=createAnimation();previewStarted=performance.now();setState('idle');$('previewAnimation').textContent='Ⅱ';$('previewAnimation').setAttribute('aria-label','暂停预览');$('previewAnimation').setAttribute('aria-pressed','true');};
  document.addEventListener('input',e=>{if(e.target.matches('input[type=range]'))stopPreview();});
  document.addEventListener('click',e=>{if(e.target.closest('.left-panel,.unified-workspace,#presetList'))stopPreview();});
  document.addEventListener('change',e=>{if(e.target.matches('#fileInput,#folderInput'))stopPreview();});
@@ -127,6 +129,7 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&session&&!session.stopping){stop.click();notify('页面已切到后台，已结束录制并保存，避免丢帧。');}});
  canvas.addEventListener('webglcontextlost',()=>{if(session)stop.click();});
  window.addEventListener('beforeunload',e=>{if(session){e.preventDefault();e.returnValue='';}});
+ document.dispatchEvent(new Event('studio:recording-ready'));
  window.addEventListener('pagehide',()=>{cancelAnimationFrame(previewFrame);stopPreview();if(session)cleanup(session);if(resultURL)URL.revokeObjectURL(resultURL);});
 }
 

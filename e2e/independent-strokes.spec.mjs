@@ -7,6 +7,7 @@ async function ready(page) {
   await page.goto('/');
   await expect(page.locator('#loading')).toBeHidden({ timeout: 20_000 });
   await page.click('[data-layer=liquid]');
+  await page.locator('.material-section summary').click();
   await page.click('[data-preset=clear]');
   return errors;
 }
@@ -68,6 +69,7 @@ test('export produces a file with layered strokes', async ({ page }) => {
   const errors = await ready(page);
   await page.click('[data-paint-mode=independent]');
   await drag(page, [.3, .3], [.7, .7]);
+  await page.click('#imageExportTab');
   const download = page.waitForEvent('download');
   await page.click('#export');
   const file = await download;
