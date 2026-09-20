@@ -4,7 +4,9 @@
 
 ## 在线使用
 
-**[打开新版工作台 · 在线体验 →](https://hajimi-tomato.github.io/liquid-studio-mint/)**
+**[打开新版工作台 · 在线体验 →版本 2026.09.20.2](https://hajimi-tomato.github.io/liquid-studio-mint/studio-20260920-2.html)**
+
+页面左下角显示 `v2026.09.20.2`。本次使用独立版本入口，便于确认加载的版本。
 
 无需安装，直接打开链接即可使用，也可以分享给朋友。这个在线入口对应正式网站，已采用与交互 Demo 一致的工作台布局，接入真实图片处理和下载。
 
