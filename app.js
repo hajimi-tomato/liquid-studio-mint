@@ -214,7 +214,7 @@ async function loadImage(src,name,sample=false){
   renderer.setImage(source);originalSource=source;imageWidth=source.width;imageHeight=source.height;
   const fieldScale=640/Math.max(imageWidth,imageHeight);fieldW=Math.max(2,Math.round(imageWidth*fieldScale));fieldH=Math.max(2,Math.round(imageHeight*fieldScale));
   stroke=null;pinch=null;pointers.clear();scene=createDocument(fieldW,fieldH);
-  history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset(sample?'strokes':'clear',false);Object.entries({strokeIntensity:100,strokeThickness:100,strokeSoftness:0}).forEach(([id,value])=>{$(id).value=value;updateRange($(id));});
+  history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset('clear',false);Object.entries({strokeIntensity:100,strokeThickness:100,strokeSoftness:0}).forEach(([id,value])=>{$(id).value=value;updateRange($(id));});
   $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
   $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;requestRender();if(!albumSwitch){album.push({name,source:originalSource});activeImage=album.length-1;rememberImage();renderAlbum();}return true;
  }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
