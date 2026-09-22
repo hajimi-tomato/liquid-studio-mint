@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-async function ready(page){const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');await expect(page.locator('#loading')).toBeHidden();await page.waitForFunction(()=>!!document.querySelector('#startRecording').onclick);return errors;}
+async function ready(page){const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');await expect(page.locator('#loading')).toBeHidden();await page.waitForFunction(()=>!!document.querySelector('#startRecording').onclick);const box=await page.locator('#editor').boundingBox();await page.mouse.move(box.x+box.width*.25,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.75,box.y+box.height*.5,{steps:20});await page.mouse.up();await page.waitForTimeout(100);return errors;}
 const pixels=page=>page.locator('#editor').evaluate(c=>c.toDataURL());
 async function more(page,id){await page.locator('.more-actions summary').click();await page.click('#'+id);}
 
