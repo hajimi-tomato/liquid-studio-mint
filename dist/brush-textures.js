@@ -1,5 +1,6 @@
 // Shared material height profile for reference preview and subsequent brush deposits.
 export function textureHeight(name,u,v){
+ if(name==='aloe'){const r=Math.hypot(u-.5,v-.5),a=Math.atan2(v-.5,u-.5);return .04+.25*Math.exp(-(((r-.28-.025*Math.sin(a*3))/.035)**2));}
  if(name==='thin')return .16+.06*Math.sin(u*11+v*4);
  if(name==='strokes'){const t=(v+u*.35)*4.5;return .06+.66*Math.max(0,Math.cos(t*Math.PI*2))**4;}
  if(name==='ripple'){const r=Math.hypot((u-.48)*1.2,v-.48);return .32*Math.exp(-r*.9)*(1+Math.sin(r*55))*.5;}

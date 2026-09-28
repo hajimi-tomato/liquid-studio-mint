@@ -10,7 +10,7 @@ test('texture previews never change artwork or undo history',async({page})=>{
  const options=page.locator('[data-preset]');expect(await options.count()).toBeGreaterThanOrEqual(7);
  const previews=new Set();
  for(const option of await options.all()){
-  await option.hover();await expect(page.locator('#materialPreview')).toBeVisible();
+  await page.mouse.move(700,60);await option.hover();await expect(page.locator('#materialPreview')).toBeVisible();
   previews.add(await page.locator('#materialPreviewCanvas').evaluate(c=>c.toDataURL()));
   await option.click();await page.waitForTimeout(50);expect(await pixels(page)===before).toBe(true);
  }

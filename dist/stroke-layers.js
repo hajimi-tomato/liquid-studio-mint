@@ -245,8 +245,10 @@ function stamp(tx, work, input, bounds, block = null) {
       changed = writePixel(work, i, [value < .002 ? 0 : value, work[i + 1], work[i + 2]]) || changed;
     } else {
       const grain = 1 + .07 * Math.sin((x * -fy + y * fx) * .28);
+      const across=((x-input.x*w)*-fy+(y-input.y*h)*fx)/Math.max(input.r,1);
+      const deposit=input.texture==='aloe' ? .16+.84*Math.exp(-(((Math.abs(across)-.60)/.22)**2)) : textureDeposit(input.texture,x/w,y/h);
       const room = block ? Math.max(0, 1 - block(i) * 1.6) : 1;
-      changed = writePixel(work, i, [Math.min(.97, old + fall * input.amount * textureDeposit(input.texture,x/w,y/h) * grain * room * (1 - old * .45)),
+      changed = writePixel(work, i, [Math.min(.97, old + fall * input.amount * deposit * grain * room * (1 - old * .45)),
         work[i + 1] * (1 - fall * .35) + fx * fall * .35,
         work[i + 2] * (1 - fall * .35) + fy * fall * .35]) || changed;
     }
