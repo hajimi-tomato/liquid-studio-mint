@@ -15,3 +15,7 @@ button,input,select{font:inherit}button{color:inherit;cursor:pointer;border:0;bo
 .canvas-bar .inline-controls .canvas-reset{background:#d9e5cf;color:#293e2d;border-color:#d9e5cf}
 @media(max-width:1100px){.canvas-bar>div:first-child{width:100%}.canvas-bar .inline-controls{width:100%;margin-left:0;gap:4px}.canvas-bar .inline-controls button{font-size:10px;padding:5px}#comparePrevious{font-size:10px}.canvas-bar{padding:7px 10px;gap:5px}}
 .canvas-reset svg{fill:none;stroke:currentColor;stroke-width:1.5}
+
+.aloe-preset{border-top:1px solid #dfe4d7;margin-top:22px;padding-top:16px}.aloe-preset .section-title{margin-bottom:10px}#applyAloe{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:1px solid #c5d3bd;background:#edf2e7}#aloePreview{width:64px;height:76px;object-fit:cover}#applyAloe span{display:flex;flex-direction:column;gap:7px}#applyAloe strong{font-size:11px;font-weight:500}#applyAloe small{font-size:9px;color:#6c7b63}#applyAloe b{font-size:10px;color:#31573b;font-weight:500}
+
+.aloe-manual{font-size:11px;color:#31573b;padding:10px 0;width:100%;text-align:left}

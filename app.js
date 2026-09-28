@@ -1,6 +1,7 @@
+import {aloeField,ALOE_SETTINGS} from './aloe-preset.js';
 import {textureHeight} from './brush-textures.js';
 import {LiquidRenderer} from './liquid-renderer.js';
-import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js?v=20260920-3';
+import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js?v=20260928';
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -45,7 +46,7 @@ function setEraseMode(next){eraseMode=Object.hasOwn(ERASE_MODES,next)?next:'top'
 // The erase tool shows its own mode row; every other tool shows the paint modes.
 function syncModeHelp(){const erasing=tool==='erase';document.querySelectorAll('.paint-mode-heading,.paint-mode-options').forEach(el=>el.hidden=erasing);document.querySelectorAll('.erase-mode-heading,.erase-mode-options').forEach(el=>el.hidden=!erasing);const help=$('paintModeHelp');if(help)help.textContent=erasing?ERASE_MODES[eraseMode]:PAINT_MODES[paintMode];}
 function currentScene(){return stroke?.tx?previewStroke(stroke.tx):scene;}
-function selectPresetButton(name){brushTexture=['clear','thin','strokes','ripple','swirl','beads','flow'].includes(name)?name:'clear';document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===brushTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));if(on)$('presetLabel').textContent=el.textContent.trim()+'　⌄';});}
+function selectPresetButton(name){brushTexture=['clear','thin','strokes','ripple','swirl','beads','flow','aloe'].includes(name)?name:'clear';document.querySelectorAll('.preset').forEach(el=>{const on=el.dataset.preset===brushTexture;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',String(on));if(on)$('presetLabel').textContent=el.textContent.trim()+'　⌄';});}
 function snapshot(){return {scene:currentScene(),fieldW,fieldH,settings:captureSettings(),strokeCount,selected:document.querySelector('.preset.selected')?.dataset.preset??null};}
 function restoreAll(){if(!ready||exporting)return;endStroke();saveHistory();setPreset('clear',false);applySettings({values:DEFAULT_SETTINGS,glassColor:'clear',glassTexture:'smooth',tool:'paint',paintMode});fitCanvas(true);compare(false);dirty=true;requestRender();toast('已还原当前原图；可以撤销，已保存的预设不受影响。');}
 const pointers=new Map();let pinch=null;
@@ -97,6 +98,16 @@ function setPreset(name,record=true){
  if(!ready)return;endStroke();if(record)saveHistory();scene=presetScene(name);strokeCount=name==='clear'?0:(name==='strokes'?4:1);updateStrokeCount();
  selectPresetButton(name);dirty=true;hasEdits=record;requestRender();
 }
+function applyAloePreset(){
+ if(!ready||exporting)return;endStroke();saveHistory();
+ const layer=layerFromField(aloeField(fieldW,fieldH),fieldW,fieldH,{kind:'fusion'});
+ scene={...createDocument(fieldW,fieldH),layers:layer?[layer]:[]};strokeCount=1;updateStrokeCount();
+ applySettings({...captureSettings(),values:{...captureSettings().values,...ALOE_SETTINGS},glassColor:'clear',glassTexture:'smooth',brushTexture:'aloe'});
+ original=false;previousComparison=false;$('originalBadge').hidden=true;hasEdits=true;dirty=true;requestRender();
+ toast('已应用亚克力 · 芦荟胶。可在「效果」调整，或撤销恢复。');
+}
+let aloePreviewRenderer;
+function renderAloePreview(){try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(w,h),w,h);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
 let previewRenderer;
 function previewPreset(name){
  if(!ready)return;
@@ -111,7 +122,7 @@ function previewPreset(name){
   previewRenderer.setImage(originalSource);previewRenderer.setField(bytes,w,h);
   const scale=240/Math.max(imageWidth,imageHeight);previewRenderer.draw(Math.max(2,Math.round(imageWidth*scale)),Math.max(2,Math.round(imageHeight*scale)),false,{strokeIntensity:100,strokeThickness:100,strokeSoftness:0,refraction:75,gloss:65,diffusion:35});
  }catch(error){console.error(error);return;}
- $('materialPreviewTitle').textContent={clear:'空白',thin:'薄涂',strokes:'手作纹路',ripple:'水波',swirl:'旋涡',beads:'凝露',flow:'流淌'}[name]+' · 效果示意';
+ $('materialPreviewTitle').textContent={aloe:'芦荟胶',clear:'空白',thin:'薄涂',strokes:'手作纹路',ripple:'水波',swirl:'旋涡',beads:'凝露',flow:'流淌'}[name]+' · 效果示意';
  popup.hidden=false;
  const button=document.querySelector('[data-preset="'+name+'"]'),rect=button.getBoundingClientRect();
  popup.style.left=Math.max(8,Math.min(innerWidth-260,rect.left))+'px';
@@ -180,7 +191,7 @@ async function switchImage(index){
    fieldW=item.fieldW;fieldH=item.fieldH;scene=item.state.scene;
    applySettings(item.state.settings);strokeCount=item.state.strokeCount;updateStrokeCount();
    history=[...item.history];future=[...item.future];updateHistory();currentName=item.currentName;hasEdits=item.hasEdits;original=false;
-   $('originalBadge').hidden=true;$('imageBadge').textContent=item.name;$('dimensions').textContent=imageWidth+' × '+imageHeight;
+   $('originalBadge').hidden=true;$('imageBadge').textContent=item.name;renderAloePreview();$('dimensions').textContent=imageWidth+' × '+imageHeight;
    fitCanvas(true);zoom=item.zoom;panX=item.panX;panY=item.panY;applyView();
    selectPresetButton(item.selected);
   }
@@ -197,7 +208,7 @@ async function importImages(files){
  toast('已加入 '+valid.length+' 张图片'+(valid.length<files.length?'，已跳过不支持或过大的文件。':'。'));
 }
 window.addEventListener('pagehide',()=>album.forEach(item=>{if(item.url)URL.revokeObjectURL(item.url);}));
-document.addEventListener('scroll',endPresetPreview,true);
+document.addEventListener('scroll',()=>{endPresetPreview();requestAnimationFrame(()=>{const hovered=document.querySelector('.preset:hover');if(hovered)previewPreset(hovered.dataset.preset);});},true);
 window.addEventListener('resize',endPresetPreview);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')endPresetPreview();});
 
@@ -215,7 +226,7 @@ async function loadImage(src,name,sample=false){
   const fieldScale=640/Math.max(imageWidth,imageHeight);fieldW=Math.max(2,Math.round(imageWidth*fieldScale));fieldH=Math.max(2,Math.round(imageHeight*fieldScale));
   stroke=null;pinch=null;pointers.clear();scene=createDocument(fieldW,fieldH);
   history=[];future=[];updateHistory();ready=true;currentName=name.replace(/\.[^.]+$/,'');hasEdits=false;resetColors(false);fitCanvas(true);setPreset('clear',false);Object.entries({strokeIntensity:100,strokeThickness:100,strokeSoftness:0}).forEach(([id,value])=>{$(id).value=value;updateRange($(id));});
-  $('dimensions').textContent=imageWidth+' × '+imageHeight;$('imageBadge').textContent=sample?'示例照片':name;
+  $('dimensions').textContent=imageWidth+' × '+imageHeight;renderAloePreview();$('imageBadge').textContent=sample?'示例照片':name;
   $('imageBadge').title=name;original=false;$('originalBadge').hidden=true;requestRender();if(!albumSwitch){album.push({name,source:originalSource});activeImage=album.length-1;rememberImage();renderAlbum();}return true;
  }catch(error){ready=previousReady;toast('图片未能打开，请选择 PNG、JPG 或 WebP 图片。');console.error(error);if(!ready){$('loading').innerHTML='<span>示例暂时无法载入，请上传一张照片开始。</span>';return;}}
  finally{if(token===loadToken&&ready)$('loading').hidden=true;}
@@ -330,7 +341,7 @@ try{
  document.querySelectorAll('.stroke-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('input[type=range]').forEach(el=>{el.addEventListener('pointerdown',()=>{if(ready)saveHistory();});el.addEventListener('keydown',e=>{if(ready&&!e.repeat&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))saveHistory();});});
  $('resetStrokeAdjust').onclick=()=>{if(!ready)return;saveHistory();['strokeIntensity','strokeThickness','strokeSoftness'].forEach((id,i)=>{$(id).value=[100,100,0][i];updateRange($(id));});requestRender();toast('已重置这组涂抹的整体调整。');};
- $('restoreAll').onclick=restoreAll;
+ $('restoreAll').onclick=restoreAll;$('applyAloe').onclick=applyAloePreset;$('paintAloe').onclick=()=>{if(!ready||exporting)return;saveHistory();applySettings({...captureSettings(),values:{...captureSettings().values,...ALOE_SETTINGS,brushSize:80,amount:35,softness:80},glassColor:'clear',glassTexture:'smooth',brushTexture:'aloe',tool:'paint'});requestRender();toast('已选芦荟胶。按住打圈涂抹，重复经过会堆厚；可用「推开」揉开。');};
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
  $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{clearStrokes();toast('涂抹已清空，玻璃材质与侧边设置已保留。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
