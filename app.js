@@ -1,4 +1,4 @@
-import {aloeField,ALOE_SETTINGS} from './aloe-preset.js';
+import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-2';
 import {textureHeight} from './brush-textures.js';
 import {LiquidRenderer} from './liquid-renderer.js';
 import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js?v=20260928';
@@ -107,7 +107,7 @@ function applyAloePreset(){
  toast('已应用亚克力 · 芦荟胶。可在「效果」调整，或撤销恢复。');
 }
 let aloePreviewRenderer;
-function renderAloePreview(){try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(w,h),w,h);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
+function renderAloePreview(){try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(fieldW,fieldH),fieldW,fieldH);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
 let previewRenderer;
 function previewPreset(name){
  if(!ready)return;
