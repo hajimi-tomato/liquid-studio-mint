@@ -84,6 +84,18 @@ test('UI-compatible normalized stroke parameters, DOM material fallback and lega
   } finally { delete globalThis.document; h.r.dispose(); }
 });
 
+test('light sense reaches the final color pass and liquid layer without changing the original comparison', () => {
+  const h = prepared(); h.r.setScene(scene([layer()]));
+  h.r.draw(8,8,false,{lightSense:64});
+  const d = draws(h);
+  assert.equal(d.find(c => c.u_pass === 1).u_lightSense,64);
+  assert.equal(d.find(c => c.u_pass === 2).u_lightSense,64);
+  h.calls.length = 0;
+  h.r.draw(8,8,true,{lightSense:64});
+  assert.deepEqual(draws(h).map(c => c.u_pass),[3]);
+  h.r.dispose();
+});
+
 test('reject invalid fields and too-large output without silently downscaling', () => {
   const h = prepared();
   assert.throws(() => h.r.setField(new Uint8Array(3),8,8), /RGBA|数据/);

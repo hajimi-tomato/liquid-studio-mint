@@ -1,6 +1,6 @@
 import {createDocument,beginStroke,paintStroke,finishStroke,expandLayer} from './stroke-layers.js?v=20260928';
 // Replay overlapping, open finger circles through the same brush engine as manual painting.
-export const ALOE_SETTINGS={refraction:20,gloss:20,diffusion:3,strokeIntensity:100,strokeThickness:70,strokeSoftness:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:0,brightness:0,contrast:0,saturation:0,temperature:0,hue:0};
+export const ALOE_SETTINGS={refraction:20,gloss:20,diffusion:3,lightSense:62,strokeIntensity:100,strokeThickness:70,strokeSoftness:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:0,brightness:0,contrast:0,saturation:0,temperature:0,hue:0};
 export function aloeField(w,h){
  const short=Math.min(w,h),hash=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
  const tx=beginStroke(createDocument(w,h),{tool:'paint',mode:'fusion'});

@@ -1,6 +1,6 @@
-import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-2';
+import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-3';
 import {textureHeight} from './brush-textures.js';
-import {LiquidRenderer} from './liquid-renderer.js';
+import {LiquidRenderer} from './liquid-renderer.js?v=20260928-3';
 import {createDocument,layerFromField,beginStroke,paintStroke,previewStroke,finishStroke,documentFromState} from './stroke-layers.js?v=20260928';
 
 const $ = (id) => document.getElementById(id);
@@ -20,7 +20,7 @@ let toastTimer;
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3600); }
 function updateRange(el) {
  el.style.setProperty('--fill', `${(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min))*100}%`);
- const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion','glassTint','glassClarity','glassReflection','glassWarp','strokeIntensity','strokeThickness','strokeSoftness'].includes(el.id)?'%':el.id==='hue'?'°':'');
+ const out = $(el.id+'Value'); if (out) out.value = el.value + (['amount','softness','refraction','gloss','diffusion','lightSense','glassTint','glassClarity','glassReflection','glassWarp','strokeIntensity','strokeThickness','strokeSoftness'].includes(el.id)?'%':el.id==='hue'?'°':'');
 }
 document.querySelectorAll('input[type=range]').forEach(el => { updateRange(el); el.addEventListener('input', () => updateRange(el)); });
 
@@ -32,7 +32,7 @@ let previousComparison=false;
 let history=[],future=[],stroke=null,loadToken=0,currentName='liquid-studio',hasEdits=false;
 
 const GLASS_COLORS={clear:[0,0,0],blue:[1.05,.35,.025],yellow:[.02,.15,1.1],brown:[.23,.7,1.28],red:[.04,1.1,.95]};
-const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,strokeIntensity:100,strokeThickness:100,strokeSoftness:0,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
+const DEFAULT_SETTINGS={brushSize:100,amount:72,softness:65,refraction:75,gloss:65,diffusion:35,lightSense:0,strokeIntensity:100,strokeThickness:100,strokeSoftness:0,brightness:0,contrast:0,hue:0,saturation:0,temperature:0,glassTint:0,glassClarity:100,glassReflection:0,glassWarp:35};
 const PAINT_MODES={fusion:'连续涂抹会融合；切换模式不会改变已经画好的内容。',independent:'每次松开完成一笔，交叉处保持各自边缘；推开会带动碰到的所有层。',squeeze:'新的一笔像气泡一样把旁边的液体挤开，贴近处形成平直的接触边。'};
 const ERASE_MODES={top:'只擦最先碰到的上层笔画，下方笔画保留。',all:'擦掉笔刷碰到的所有层，直接露出底图。'};
 let glassColor='clear',glassTexture='smooth',originalSource=null;
@@ -271,7 +271,8 @@ function validateSavedPreset(record){
  if(!record||![1,2].includes(record.version)||!(record.image instanceof Blob)||!sized||!record.settings?.values)throw new Error('预设数据不完整');
  if(record.version===1&&(!(record.field instanceof Uint8Array)||record.field.length!==record.fieldW*record.fieldH*4))throw new Error('预设数据不完整');
  if(record.version===2&&!Array.isArray(record.layers))throw new Error('预设数据不完整');
- for(const id of Object.keys(DEFAULT_SETTINGS))if(!Number.isFinite(record.settings.values[id]))throw new Error('预设参数无效');
+ for(const id of Object.keys(DEFAULT_SETTINGS))if(id!=='lightSense'&&!Number.isFinite(record.settings.values[id]))throw new Error('预设参数无效');
+ if(record.settings.values.lightSense!==undefined&&!Number.isFinite(record.settings.values.lightSense))throw new Error('预设参数无效');
  if(record.settings.paintMode!==undefined&&!Object.hasOwn(PAINT_MODES,record.settings.paintMode))throw new Error('预设参数无效');
  if(record.settings.eraseMode!==undefined&&!Object.hasOwn(ERASE_MODES,record.settings.eraseMode))throw new Error('预设参数无效');
  return record;
@@ -341,7 +342,7 @@ try{
  document.querySelectorAll('.stroke-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('input[type=range]').forEach(el=>{el.addEventListener('pointerdown',()=>{if(ready)saveHistory();});el.addEventListener('keydown',e=>{if(ready&&!e.repeat&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))saveHistory();});});
  $('resetStrokeAdjust').onclick=()=>{if(!ready)return;saveHistory();['strokeIntensity','strokeThickness','strokeSoftness'].forEach((id,i)=>{$(id).value=[100,100,0][i];updateRange($(id));});requestRender();toast('已重置这组涂抹的整体调整。');};
- $('restoreAll').onclick=restoreAll;$('applyAloe').onclick=applyAloePreset;$('paintAloe').onclick=()=>{if(!ready||exporting)return;saveHistory();applySettings({...captureSettings(),values:{...captureSettings().values,...ALOE_SETTINGS,brushSize:80,amount:35,softness:80},glassColor:'clear',glassTexture:'smooth',brushTexture:'aloe',tool:'paint'});requestRender();toast('已选芦荟胶。按住打圈涂抹，重复经过会堆厚；可用「推开」揉开。');};
+ $('restoreAll').onclick=restoreAll;$('applyAloe').onclick=applyAloePreset;$('paintAloe').onclick=()=>{if(!ready||exporting)return;saveHistory();applySettings({...captureSettings(),values:{...captureSettings().values,...ALOE_SETTINGS,lightSense:Number($('lightSense').value),brushSize:80,amount:35,softness:80},glassColor:'clear',glassTexture:'smooth',brushTexture:'aloe',tool:'paint'});requestRender();toast('已选芦荟胶。按住打圈涂抹，重复经过会堆厚；可用「推开」揉开。');};
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
  $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{clearStrokes();toast('涂抹已清空，玻璃材质与侧边设置已保留。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};

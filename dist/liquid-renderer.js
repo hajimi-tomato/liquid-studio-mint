@@ -5,7 +5,7 @@ export const GLASS_COLORS = Object.freeze({
 });
 const DEFAULTS = Object.freeze({
   brightness: 0, contrast: 0, hue: 0, saturation: 0, temperature: 0,
-  refraction: 75, gloss: 65, diffusion: 35, strokeIntensity: 100,
+  refraction: 75, gloss: 65, diffusion: 35, lightSense: 0, strokeIntensity: 100,
   strokeThickness: 100, strokeSoftness: 0, glassTint: 0, glassClarity: 100,
   glassReflection: 0, glassWarp: 35, motionPhase: 0, motionMode: 0,
 });
@@ -27,6 +27,7 @@ uniform float u_motionPhase; uniform float u_motionMode;
 uniform float u_brightness; uniform float u_contrast;
 uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
 uniform float u_refraction; uniform float u_gloss; uniform float u_diffusion;
+uniform float u_lightSense;
 uniform float u_strokeIntensity; uniform float u_strokeThickness; uniform float u_strokeSoftness;
 uniform vec3 u_absorption;
 uniform float u_glassTint; uniform float u_glassClarity; uniform float u_glassReflection;
@@ -75,6 +76,19 @@ vec3 adjust(vec3 c){
   c=c*cos(angle)+cross(axis,c)*sin(angle)+axis*dot(axis,c)*(1.0-cos(angle));
   float lum=dot(c,vec3(0.2126,0.7152,0.0722));c=mix(vec3(lum),c,1.0+u_saturation*0.01);
   c+=vec3(0.0015,0.00025,-0.0015)*u_temperature;
+  // A luminous look combines restrained highlight lift with selective vibrance.
+  // Protect nearly-white pixels and already saturated colors from clipping.
+  if(u_lightSense>0.0){
+    float strength=clamp(u_lightSense*0.01,0.0,1.0);
+    float luma=dot(c,vec3(0.2126,0.7152,0.0722));
+    float chroma=max(c.r,max(c.g,c.b))-min(c.r,min(c.g,c.b));
+    float highlight=smoothstep(0.22,0.76,luma);
+    float room=1.0-smoothstep(0.84,1.0,max(c.r,max(c.g,c.b)));
+    float vibrance=strength*(0.16+0.65*highlight)*(1.0-smoothstep(0.14,0.58,chroma))*room;
+    c=mix(vec3(luma),c,1.0+vibrance);
+    float lift=strength*0.09*smoothstep(0.28,0.72,luma)*(1.0-smoothstep(0.88,1.0,luma));
+    c+=vec3(lift)*room;
+  }
   return clamp(c,0.0,1.0);
 }
 vec3 liquid(vec2 uv,vec3 color){
@@ -96,7 +110,8 @@ vec3 liquid(vec2 uv,vec3 color){
   offset+=across*aspect*(ridge*0.0025+broadRidge*0.005)*h*refract;
   offset=clamp(offset,vec2(-0.15),vec2(0.15));
   vec2 sampleUV=uv+offset;
-  vec2 blur=direction*aspect*h*(0.002+diffusion*0.028+u_strokeThickness*0.018+u_strokeSoftness*0.07);
+  float lightSense=clamp(u_lightSense*0.01,0.0,1.0);
+  vec2 blur=direction*aspect*h*(0.002+diffusion*0.028+u_strokeThickness*0.018+u_strokeSoftness*0.07)*(1.0-lightSense*0.38);
   vec3 glass=rawPhoto(sampleUV)*0.28;
   glass+=rawPhoto(sampleUV+blur)*0.16+rawPhoto(sampleUV-blur)*0.16;
   glass+=rawPhoto(sampleUV+blur*2.0)*0.11+rawPhoto(sampleUV-blur*2.0)*0.11;
@@ -113,7 +128,7 @@ vec3 liquid(vec2 uv,vec3 color){
   vec3 halo=rawPhoto(sampleUV+aspect*vec2(0.014,0.0))+rawPhoto(sampleUV-aspect*vec2(0.014,0.0))+rawPhoto(sampleUV+vec2(0.0,0.014))+rawPhoto(sampleUV-vec2(0.0,0.014));
   glass+=max(halo*0.25-0.55,vec3(0.0))*h*(diffusion+u_strokeSoftness)*0.85;
   float luminance=dot(glass,vec3(0.2126,0.7152,0.0722));
-  float milky=u_strokeSoftness*0.34+h*0.10;
+  float milky=(u_strokeSoftness*0.34+h*0.10)*(1.0-lightSense*0.72);
   glass=mix(glass,vec3(luminance)*0.82+glass*0.18,milky);
   glass+=vec3(0.96,0.98,0.94)*h*(0.025+u_strokeSoftness*0.09);
   float film=smoothstep(0.004,0.13,h)*clamp(u_strokeIntensity,0.0,1.5);
