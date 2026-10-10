@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090d19" />
+  <meta name="description" content="Stable Diffusion 提示词创作与优化助手｜AI 产品设计与策划独立项目作品集，展示用户洞察、功能设计、Prompt 规则、模型适配与 Discord 社群交付。" />
+  <meta property="og:title" content="Stable Diffusion 提示词创作与优化助手｜项目作品集" />
+  <meta property="og:description" content="从用户问题到 Prompt 结构化系统：一个面向 Stable Diffusion 社群的 AI 产品案例。" />
+  <title>Stable Diffusion 提示词助手 | AI 产品作品集</title>
+  <style>
+    :root{
+      --bg:#080d18;
+      --bg2:#0c1221;
+      --surface:#0f1628cc;
+      --surface-solid:#10182b;
+      --surface-2:#151f38;
+      --border:rgba(170,193,255,.14);
+      --border-strong:rgba(160,221,255,.28);
+      --text:#eef3ff;
+      --muted:#9eabc9;
+      --muted-2:#7380a0;
+      --cyan:#72dcff;
+      --blue:#86a7ff;
+      --violet:#b38bff;
+      --mint:#97ffd7;
+      --glow:0 0 0 1px rgba(255,255,255,.04),0 20px 60px rgba(4,9,20,.55);
+      --radius-xl:28px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --max:1280px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;scroll-padding-top:86px}
+    body{
+      margin:0;
+      color:var(--text);
+      font:15px/1.75 Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(75,108,255,.15), transparent 30%),
+        radial-gradient(circle at 85% 8%, rgba(135,72,255,.18), transparent 28%),
+        linear-gradient(180deg,#070b15 0%,#08111f 26%,#0a101d 100%);
+      letter-spacing:.01em;
+      overflow-x:hidden;
+    }
+    body::before{
+      content:"";
+      position:fixed;inset:0;pointer-events:none;z-index:-2;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size:40px 40px;
+      mask-image:linear-gradient(180deg,rgba(255,255,255,.6),transparent 80%);
+      opacity:.45;
+    }
+    body::after{
+      content:"";
+      position:fixed;inset:auto -20% -30% auto;width:60vw;height:60vw;border-radius:50%;
+      background:radial-gradient(circle, rgba(86,170,255,.08) 0%, rgba(86,170,255,0) 70%);
+      filter:blur(40px);pointer-events:none;z-index:-1;
+    }
+    h1,h2,h3,h4,p{margin:0}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button{font:inherit}
+    .shell{width:min(var(--max),calc(100vw - 36px));margin:0 auto}
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:8px;
+      color:#a8f0ff;font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;
+      padding:8px 12px;border-radius:999px;border:1px solid rgba(141,220,255,.18);
+      background:linear-gradient(180deg, rgba(16,26,49,.78), rgba(8,13,24,.88));
+      backdrop-filter:blur(10px);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--mint));box-shadow:0 0 18px rgba(114,220,255,.8)}
+    .nav{
+      position:sticky;top:0;z-index:100;
+      backdrop-filter:blur(18px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg,rgba(7,11,21,.82),rgba(7,11,21,.66));
+    }
+    .nav-inner{height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:800}
+    .brand-mark{
+      width:42px;height:42px;border-radius:14px;position:relative;
+      border:1px solid rgba(144,201,255,.28);
+      background:linear-gradient(145deg,#0d1730,#131935 48%,#1c1236);
+      box-shadow:0 0 0 1px rgba(255,255,255,.04), inset 0 0 18px rgba(127,173,255,.15), 0 10px 28px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .brand-mark::before,.brand-mark::after{content:"";position:absolute;inset:8px;border-radius:10px;border:1px solid rgba(122,213,255,.25)}
+    .brand-mark::after{inset:15px;border-color:rgba(179,139,255,.22)}
+    .brand-mark span{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;color:#d2d9ff;letter-spacing:.15em}
+    .brand-copy strong{display:block;font-size:14px;line-height:1.2}
+    .brand-copy small{display:block;color:var(--muted-2);font-size:10px;letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
+    .nav-links{display:flex;align-items:center;gap:24px;font-size:13px;color:#b9c3de}
+    .nav-links a{position:relative}
+    .nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:-6px;height:1px;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:right .25s ease}
+    .nav-links a:hover::after{right:0}
+    .nav-cta{padding:10px 16px;border-radius:999px;border:1px solid rgba(162,198,255,.2);background:linear-gradient(180deg,rgba(31,43,75,.72),rgba(17,24,42,.72));box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+
+    .hero{padding:38px 0 60px;position:relative;overflow:hidden}
+    .hero-bg{
+      position:absolute;inset:0 0 auto 0;height:780px;overflow:hidden;z-index:-1;mask-image:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,255,255,.6),transparent 95%);
+    }
+    .hero-bg img{width:100%;height:100%;object-fit:cover;opacity:.72;filter:saturate(1.08) contrast(1.03)}
+    .hero-bg::after{
+      content:"";position:absolute;inset:0;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(10,14,26,.08), transparent 25%),
+        linear-gradient(180deg, rgba(8,13,24,.28), rgba(8,13,24,.62) 55%, rgba(8,13,24,.96));
+    }
+    .hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(420px,.85fr);gap:26px;align-items:stretch;padding-top:28px}
+    .hero-copy,.hero-side,.glass-card,.metric,.pain-card,.matrix-card,.section-panel,.journey-card,.taxonomy-card,.decision-card,.doc-card,.deliver-card,.case-card{
+      position:relative;overflow:hidden;
+      border:1px solid var(--border);
+      border-radius:var(--radius-xl);
+      background:linear-gradient(180deg, rgba(16,24,43,.84), rgba(10,17,31,.94));
+      box-shadow:var(--glow);
+      backdrop-filter:blur(14px);
+    }
+    .glass-card::before,.metric::before,.pain-card::before,.matrix-card::before,.section-panel::before,.journey-card::before,.taxonomy-card::before,.decision-card::before,.doc-card::before,.deliver-card::before,.case-card::before,
+    .hero-copy::before,.hero-side::before{
+      content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+      background:
+        linear-gradient(120deg, rgba(132,210,255,.13), transparent 18%, transparent 82%, rgba(179,139,255,.12)),
+        radial-gradient(circle at 0 0, rgba(114,220,255,.18), transparent 18%),
+        radial-gradient(circle at 100% 100%, rgba(179,139,255,.16), transparent 18%);
+      opacity:.8;
+    }
+    .corner-deco::before,.corner-deco::after{
+      content:"";position:absolute;width:72px;height:72px;border:1px solid rgba(114,220,255,.3);pointer-events:none
+    }
+    .corner-deco::before{top:12px;left:12px;border-right:none;border-bottom:none;border-top-left-radius:18px}
+    .corner-deco::after{right:12px;bottom:12px;border-left:none;border-top:none;border-bottom-right-radius:18px;border-color:rgba(179,139,255,.26)}
+    .hero-copy{padding:34px 32px 30px;min-height:590px}
+    .hero-copy h1{font-size:clamp(38px,4.8vw,68px);line-height:1.08;letter-spacing:-.06em;margin:18px 0 20px;font-weight:850}
+    .hero-copy h1 .gradient{display:block;background:linear-gradient(90deg,#f0f4ff 0%,#b6cbff 32%,#8fe8ff 58%,#caacff 92%);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .hero-lead{max-width:720px;font-size:16px;line-height:1.9;color:#c0cbe3}
+    .hero-tags{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 24px}
+    .chip{
+      padding:7px 12px;border-radius:999px;font-size:12px;color:#c8d2ec;
+      border:1px solid rgba(155,181,255,.15);background:linear-gradient(180deg,rgba(25,34,59,.8),rgba(16,22,39,.7))
+    }
+    .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+    .btn-primary,.btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 18px;border-radius:14px;font-size:14px;font-weight:800;transition:transform .18s ease,border-color .18s ease, background .18s ease}
+    .btn-primary{background:linear-gradient(135deg,#d4ddff,#94f1ff 70%,#bda6ff);color:#0b1320;box-shadow:0 18px 40px rgba(119,178,255,.18)}
+    .btn-secondary{border:1px solid rgba(153,188,255,.18);background:rgba(20,27,44,.72);color:#dce5fb}
+    .btn-primary:hover,.btn-secondary:hover{transform:translateY(-2px)}
+    .hero-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
+    .mini-panel{padding:14px 14px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .mini-panel span{display:block;color:var(--muted-2);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+    .mini-panel strong{font-size:15px;color:#ebf3ff}
+
+    .hero-side{padding:22px;display:grid;gap:16px;align-content:start}
+    .spotlight{
+      padding:18px 18px 16px;border-radius:20px;border:1px solid rgba(126,191,255,.15);
+      background:linear-gradient(180deg,rgba(9,16,31,.9),rgba(18,24,43,.86));
+    }
+    .spotlight .title{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px}
+    .spotlight h3{font-size:18px;letter-spacing:-.02em}
+    .spotlight small{font-size:11px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.14em}
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .stat-box{padding:14px;border-radius:18px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)}
+    .stat-box .num{font-size:30px;font-weight:850;letter-spacing:-.05em;line-height:1;color:#f4f7ff}
+    .stat-box .label{margin-top:8px;font-size:12px;color:#bcc8e5}
+    .spot-list{display:grid;gap:12px}
+    .spot-item{display:grid;grid-template-columns:38px 1fr;gap:12px;align-items:start;padding:12px;border-radius:16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.055)}
+    .spot-item .icon{width:38px;height:38px;border-radius:12px;border:1px solid rgba(114,220,255,.22);display:grid;place-items:center;background:linear-gradient(135deg,rgba(16,38,58,.9),rgba(28,24,56,.9));font-size:18px}
+    .spot-item strong{display:block;font-size:14px;margin-bottom:4px}
+    .spot-item p{font-size:12px;color:#9fb0cf;line-height:1.75}
+    .spot-bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+    .spot-chip{font-size:11px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#c6d1ea}
+
+    .section{padding:44px 0 14px}
+    .section-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:22px}
+    .section-head h2{font-size:clamp(28px,3.3vw,42px);line-height:1.2;letter-spacing:-.05em;margin-top:12px}
+    .section-head p{max-width:740px;color:#a7b3cf;font-size:15px;line-height:1.95}
+    .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);margin:30px 0 8px}
+
+    .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .metric{padding:22px 22px 20px;border-radius:22px}
+    .metric .big{font-size:42px;font-weight:900;line-height:.95;letter-spacing:-.07em;background:linear-gradient(90deg,#eef3ff,#b8d2ff 42%,#97f4ff 70%,#cbadff);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .metric strong{display:block;margin-top:10px;font-size:14px}
+    .metric p{margin-top:6px;color:#93a2c1;font-size:12px;line-height:1.7}
+
+    .problem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .pain-card{padding:22px;border-radius:22px;min-height:220px}
+    .pain-card .no{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;letter-spacing:.18em;color:#7e8cac}
+    .pain-card h3{font-size:22px;letter-spacing:-.03em;margin:20px 0 10px}
+    .pain-card p{font-size:13px;color:#a6b5d1;line-height:1.9}
+    .pain-card ul{margin:14px 0 0 16px;padding:0;color:#c7d2ea;font-size:12px;line-height:1.85}
+
+    .matrix-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .matrix-card{padding:14px;border-radius:22px;display:flex;flex-direction:column;gap:12px}
+    .thumb-wrap{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.09);background:#09101d;aspect-ratio:4/5}
+    .thumb-wrap img{width:100%;height:100%;object-fit:cover;object-position:top center}
+    .matrix-card .meta{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#8da0c7;font-size:11px;text-transform:uppercase;letter-spacing:.14em}
+    .matrix-card h3{font-size:18px;line-height:1.25;letter-spacing:-.02em}
+    .matrix-card p{font-size:12px;color:#a7b4cf;line-height:1.8}
+    .matrix-card ul{margin:0;padding-left:16px;color:#d8e0f5;font-size:12px;line-height:1.8}
+
+    .journey-shell{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}
+    .journey-nav,.journey-view{padding:18px;border-radius:24px}
+    .journey-nav{display:grid;gap:12px;background:linear-gradient(180deg,rgba(12,18,34,.9),rgba(11,16,28,.92));border:1px solid var(--border);box-shadow:var(--glow)}
+    .tab-btn{
+      width:100%;text-align:left;padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);color:#dbe5ff;cursor:pointer;transition:all .18s ease;
+    }
+    .tab-btn .idx{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#7e8db0;margin-bottom:5px}
+    .tab-btn strong{display:block;font-size:16px;margin-bottom:5px}
+    .tab-btn span{display:block;font-size:12px;line-height:1.7;color:#98a9c9}
+    .tab-btn.active{border-color:rgba(114,220,255,.32);background:linear-gradient(180deg,rgba(21,31,58,.9),rgba(14,22,40,.9));box-shadow:inset 0 0 0 1px rgba(179,139,255,.16),0 10px 30px rgba(6,12,24,.35)}
+    .journey-view{border:1px solid var(--border);background:linear-gradient(180deg,rgba(15,23,42,.9),rgba(9,14,25,.95));box-shadow:var(--glow)}
+    .journey-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:16px;margin-bottom:18px}
+    .journey-head h3{font-size:26px;letter-spacing:-.04em}
+    .journey-head p{font-size:14px;color:#a6b4d1;max-width:680px;line-height:1.85;margin-top:8px}
+    .journey-head .type{padding:8px 10px;border-radius:999px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#cff1ff;border:1px solid rgba(114,220,255,.25);background:rgba(114,220,255,.08)}
+    .journey-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .journey-card{padding:16px;border-radius:20px}
+    .journey-card h4{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#8ab9ff;margin-bottom:10px}
+    .journey-card p,.journey-card li{font-size:13px;color:#d6def0;line-height:1.85}
+    .journey-card ul{margin:0;padding-left:16px}
+    pre.code{
+      margin:0;font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d6e1fb;
+      white-space:pre-wrap;background:rgba(5,10,20,.55);border:1px solid rgba(255,255,255,.06);padding:16px;border-radius:16px;min-height:180px
+    }
+
+    .taxonomy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .taxonomy-card{padding:18px;border-radius:22px}
+    .taxonomy-card h3{font-size:18px;margin-bottom:10px;letter-spacing:-.02em}
+    .taxonomy-card p{font-size:12px;color:#98a7c5;line-height:1.8;margin-bottom:12px}
+    .tag-cloud{display:flex;flex-wrap:wrap;gap:8px}
+    .tag-cloud span{padding:6px 10px;border-radius:999px;font-size:12px;color:#d7e4ff;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08)}
+
+    .decision-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    .decision-card{padding:20px;border-radius:24px}
+    .decision-card h3{font-size:22px;letter-spacing:-.03em;margin-bottom:8px}
+    .decision-card p{font-size:13px;color:#a7b4d0;line-height:1.9}
+    .decision-card ul{margin:14px 0 0;padding-left:16px;color:#dce7ff;font-size:12px;line-height:1.85}
+
+    .deliver-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+    .deliver-card{padding:20px;border-radius:24px}
+    .deliver-card h3{font-size:24px;letter-spacing:-.03em;margin-bottom:8px}
+    .deliver-card p{font-size:13px;color:#a7b6d2;line-height:1.85}
+    .deliver-list{display:grid;gap:12px;margin-top:14px}
+    .deliver-row{display:grid;grid-template-columns:96px 1fr;gap:12px;padding:12px 0;border-top:1px solid rgba(255,255,255,.06)}
+    .deliver-row:first-child{border-top:none;padding-top:0}
+    .deliver-row strong{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#8ab9ff}
+    .deliver-row span{font-size:13px;color:#dce5fb;line-height:1.8}
+    .steps{display:grid;gap:10px;margin-top:16px}
+    .step{padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .step strong{display:block;font-size:13px;margin-bottom:4px}
+    .step span{font-size:12px;color:#a7b3cd;line-height:1.8}
+
+    .case-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .case-card{padding:18px;border-radius:22px}
+    .case-card .label{display:inline-block;padding:5px 9px;border-radius:999px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9dbcf5}
+    .case-card h3{font-size:18px;line-height:1.3;letter-spacing:-.02em;margin:14px 0 8px}
+    .case-card p{font-size:12px;color:#9fadc9;line-height:1.85}
+    .case-card .mini-code{margin-top:12px;padding:12px;border-radius:14px;background:rgba(6,10,18,.56);border:1px solid rgba(255,255,255,.05);font:11px/1.7 ui-monospace,SFMono-Regular,monospace;color:#dae6ff}
+
+    .docs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .doc-card{padding:14px;border-radius:22px}
+    .doc-card .doc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .doc-card strong{font-size:15px;line-height:1.5}
+    .doc-card span{font-size:11px;color:#7f8fb1;letter-spacing:.14em;text-transform:uppercase}
+    .doc-card p{font-size:12px;color:#a8b5d0;line-height:1.8;margin-top:10px}
+
+    .cta{padding:54px 0 72px}
+    .cta-box{padding:28px;border-radius:30px;display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid rgba(155,192,255,.15);background:linear-gradient(135deg,rgba(16,24,43,.9),rgba(11,17,31,.96));box-shadow:var(--glow)}
+    .cta-box h2{font-size:34px;letter-spacing:-.05em}
+    .cta-box p{margin-top:10px;color:#a6b4d0;line-height:1.9}
+
+    .footer{padding:20px 0 38px;color:#7f8dae;font-size:13px}
+    .footer-line{display:flex;justify-content:space-between;gap:20px;padding-top:18px;border-top:1px solid rgba(255,255,255,.07)}
+
+    @media (max-width: 1100px){
+      .hero-grid,.journey-shell,.deliver-grid{grid-template-columns:1fr}
+      .hero-copy{min-height:auto}
+      .metrics-grid,.problem-grid,.matrix-grid,.taxonomy-grid,.case-grid,.docs-grid,.decision-grid{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width: 760px){
+      .shell{width:min(var(--max),calc(100vw - 22px))}
+      .nav-inner{height:68px}
+      .nav-links{display:none}
+      .hero{padding-top:18px}
+      .hero-copy,.hero-side,.metric,.pain-card,.matrix-card,.journey-nav,.journey-view,.taxonomy-card,.decision-card,.deliver-card,.case-card,.doc-card,.cta-box{border-radius:22px}
+      .hero-copy{padding:24px 18px}
+      .hero-side{padding:16px}
+      .hero-notes,.metrics-grid,.problem-grid,.matrix-grid,.taxonomy-grid,.case-grid,.docs-grid,.decision-grid,.journey-cols{grid-template-columns:1fr}
+      .section-head{display:block}
+      .section-head p{margin-top:10px}
+      .spot-item{grid-template-columns:1fr}
+      .deliver-row{grid-template-columns:1fr}
+      .cta-box{display:block}
+      .cta-box .btn-primary{margin-top:16px}
+      .hero-bg{height:680px}
+      .brand-copy strong{max-width:160px;line-height:1.3}
+    }
+  
+    /* GitHub Pages public portfolio refinements */
+    .section:nth-of-type(4n){background:linear-gradient(180deg,rgba(8,13,24,.82),rgba(8,13,24,.93)),url('assets/section-tech-bg.svg') center center/cover no-repeat;}
+    .hero-bg img{opacity:.78;filter:saturate(1.14) contrast(1.08)}
+    .matrix-card:hover,.decision-card:hover,.taxonomy-card:hover,.case-card:hover,.doc-card:hover{border-color:rgba(132,218,255,.32);box-shadow:0 0 0 1px rgba(133,221,255,.09),0 18px 65px rgba(3,10,23,.68),inset 0 0 35px rgba(65,125,215,.035)}
+    .metric:after,.matrix-card:after,.taxonomy-card:after,.journey-card:after{content:'+';position:absolute;right:17px;top:12px;color:rgba(130,227,255,.4);font:18px/1 ui-monospace,monospace;text-shadow:0 0 12px rgba(90,212,255,.38)}
+    .doc-card .thumb-wrap{aspect-ratio:4/5}
+    .tiny-disclaimer{font-size:12px;color:#8c9ebd;line-height:1.8;margin-top:15px}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="shell nav-inner">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <div class="brand-mark"><span>SD</span></div>
+        <div class="brand-copy">
+          <strong>Stable Diffusion 提示词创作与优化助手</strong>
+          <small>AI PRODUCT CASE STUDY</small>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="#overview">概览</a>
+        <a href="#matrix">功能矩阵</a>
+        <a href="#journey">交互流程</a>
+        <a href="#system">结构系统</a>
+        <a href="#delivery">交付方式</a>
+        <a href="#source">资料来源</a>
+      </div>
+      <a class="nav-cta" href="#delivery">GitHub Pages 部署版</a>
+    </div>
+  </nav>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-bg">
+        <img src="assets/hero-tech-bg.svg" alt="科技风背景" />
+      </div>
+      <div class="shell hero-grid">
+        <div class="hero-copy corner-deco">
+          <span class="eyebrow">Independent AI Product · 2025.01 — 2026.05</span>
+          <h1>
+            Stable Diffusion<br>
+            <span class="gradient">提示词创作与优化助手</span>
+          </h1>
+          <p class="hero-lead">
+            面向 Stable Diffusion 创作者的 AI 辅助产品。围绕<strong>提示词编写门槛高、参考图转译难、局部修改成本高、模型适配分散</strong>等问题，规划 Discord 社群 Bot 与本地客户端使用方案，逐步形成了由「撰写」「优化」「图像反推」「Newbie 专项规则」组成的产品能力矩阵。
+          </p>
+          <div class="hero-tags">
+            <span class="chip">AI 产品设计与策划</span>
+            <span class="chip">Stable Diffusion 生态</span>
+            <span class="chip">Discord 社群 Bot</span>
+            <span class="chip">Prompt 结构化系统</span>
+            <span class="chip">Newbie 模型适配</span>
+          </div>
+          <div class="hero-actions">
+            <a class="btn-primary" href="#matrix">查看完整功能矩阵</a>
+            <a class="btn-secondary" href="#source">查看四份原始资料整合方式</a>
+          </div>
+          <div class="hero-notes">
+            <div class="mini-panel">
+              <span>项目定位</span>
+              <strong>面向创作者的提示词工作台</strong>
+            </div>
+            <div class="mini-panel">
+              <span>主要入口</span>
+              <strong>Discord 社群 Bot + 本地客户端</strong>
+            </div>
+            <div class="mini-panel">
+              <span>核心价值</span>
+              <strong>把复杂 Prompt 变成可理解、可修改、可复用的创作操作</strong>
+            </div>
+            <div class="mini-panel">
+              <span>展示说明</span>
+              <strong>本页为产品案例复盘，页面示例为非实时演示</strong>
+            </div>
+          </div>
+        </div>
+
+        <aside class="hero-side corner-deco">
+          <div class="spotlight">
+            <div class="title">
+              <div>
+                <small>Project Snapshot</small>
+                <h3>截至 2026 年 5 月的产品结果</h3>
+              </div>
+              <span class="chip">真实项目数据</span>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-box">
+                <div class="num">4W+</div>
+                <div class="label">在线版累计使用</div>
+              </div>
+              <div class="stat-box">
+                <div class="num">1.1W+</div>
+                <div class="label">本地版累计下载</div>
+              </div>
+              <div class="stat-box">
+                <div class="num">100+</div>
+                <div class="label">灰度测试用户</div>
+              </div>
+              <div class="stat-box">
+                <div class="num">150+</div>
+                <div class="label">有效反馈</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="spot-list">
+            <div class="spot-item">
+              <div class="icon">◎</div>
+              <div>
+                <strong>我在项目中的角色</strong>
+                <p>负责用户问题梳理、产品功能规划、提示词策略设计、结构化规则制定、灰度反馈整理与对外使用方案沉淀。</p>
+              </div>
+            </div>
+            <div class="spot-item">
+              <div class="icon">◇</div>
+              <div>
+                <strong>项目解决的四类任务</strong>
+                <div class="spot-bar">
+                  <span class="spot-chip">自然语言撰写</span>
+                  <span class="spot-chip">已有 Prompt 优化</span>
+                  <span class="spot-chip">参考图反推</span>
+                  <span class="spot-chip">模型专项适配</span>
+                </div>
+              </div>
+            </div>
+            <div class="spot-item">
+              <div class="icon">✦</div>
+              <div>
+                <strong>为什么做成产品而不是单一 Prompt</strong>
+                <p>因为用户的真实问题不只是“要一段提示词”，而是从不同输入出发完成创作、修改、复刻和模型适配，这需要完整的规则与交互设计。</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="overview" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Overview</span>
+            <h2>从创作痛点出发，构建可复用的产品能力。</h2>
+          </div>
+          <p>这不是一个简单的“提示词模板合集”。我把四份功能文档中分散的规则、使用方式和场景能力，整理为一个清晰的产品结构：先看清问题，再定义产品能力，最后形成可交付、可复用、可扩展的创作工具。</p>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric corner-deco"><div class="big">20+</div><strong>用户深访</strong><p>用于了解 Prompt 编写、图片复刻、局部修改等真实使用障碍。</p></div>
+          <div class="metric corner-deco"><div class="big">1000+</div><strong>问卷反馈</strong><p>帮助定位核心需求优先级：撰写、优化、反推与模型专项规则。</p></div>
+          <div class="metric corner-deco"><div class="big">4</div><strong>文档模块</strong><p>对应通用撰写、Prompt 优化、XML 结构化与 Newbie 模型适配。</p></div>
+          <div class="metric corner-deco"><div class="big">1</div><strong>核心产品目标</strong><p>让用户用更低门槛、更稳定的方式完成 Stable Diffusion 创作。</p></div>
+        </div>
+        <div class="divider"></div>
+        <div class="problem-grid">
+          <article class="pain-card corner-deco">
+            <div class="no">Problem 01</div>
+            <h3>提示词会写，但难写好</h3>
+            <p>很多用户知道要写 Prompt，却不知道如何系统组织角色、场景、镜头、光影与氛围。结果往往是标签零散、质量不稳定，难以复用。</p>
+            <ul>
+              <li>专业标签学习成本高</li>
+              <li>自然语言难直接转成高质量 Prompt</li>
+              <li>写完后仍不清楚结构问题出在哪里</li>
+            </ul>
+          </article>
+          <article class="pain-card corner-deco">
+            <div class="no">Problem 02</div>
+            <h3>图片能看懂，但很难“反推”</h3>
+            <p>用户经常想复刻一张图里的角色、动作、构图与色彩，却很难完整描述这些要素，更难输出一段逻辑清晰、字段完整的 Stable Diffusion 提示词。</p>
+            <ul>
+              <li>元素识别容易漏掉细节</li>
+              <li>没有统一的分类框架</li>
+              <li>复刻需求经常止步于“像不像”</li>
+            </ul>
+          </article>
+          <article class="pain-card corner-deco">
+            <div class="no">Problem 03</div>
+            <h3>想改一点，却要重写很多</h3>
+            <p>当用户只想修改人物、色调、动态或饰品时，通常需要重写大量标签，成本高且容易破坏原有画面条件。因此需要局部编辑与规则保留机制。</p>
+            <ul>
+              <li>现有 Prompt 修改繁琐</li>
+              <li>容易误伤其他画面要素</li>
+              <li>不同模型还需要额外适配</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="matrix" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Function Matrix</span>
+            <h2>四份文档，不是堆材料，而是四层产品能力。</h2>
+          </div>
+          <p>项目原始材料由四份产品文档构成。这里将使用指南、交互案例与结构化规则重组为一张产品能力矩阵，明确每项能力对应的创作任务、规则机制与用户价值。</p>
+        </div>
+        <div class="matrix-grid">
+          <article class="matrix-card corner-deco">
+            <div class="thumb-wrap"><img src="assets/write_doc.svg" alt="提示词撰写助手文档封面" /></div>
+            <div class="meta"><span>Module 01</span><span>通用创作</span></div>
+            <h3>提示词撰写助手</h3>
+            <p>用于从零开始撰写 Stable Diffusion 提示词，覆盖日常创作与图片反推等不同版本。</p>
+            <ul>
+              <li>通用版本 / 图片反推版本</li>
+              <li>面向不同创作边界的场景分流</li>
+              <li>作为产品“入口能力”的基础模块</li>
+            </ul>
+          </article>
+          <article class="matrix-card corner-deco">
+            <div class="thumb-wrap"><img src="assets/optimize_doc.svg" alt="提示词优化助手文档封面" /></div>
+            <div class="meta"><span>Module 02</span><span>二次编辑</span></div>
+            <h3>提示词优化助手</h3>
+            <p>用于整理已有 Prompt 结构，并接受自然语言修改指令，完成指定元素替换或重组。</p>
+            <ul>
+              <li>结构重排与逻辑优化</li>
+              <li>支持“改人物 / 改色调 / 保留背景”</li>
+              <li>适合已有资产的增量迭代</li>
+            </ul>
+          </article>
+          <article class="matrix-card corner-deco">
+            <div class="thumb-wrap"><img src="assets/newbie_xml_doc.svg" alt="Newbie XML 规则文档封面" /></div>
+            <div class="meta"><span>Module 03</span><span>结构化系统</span></div>
+            <h3>XML 提示词拆解规则</h3>
+            <p>把 Danbooru 标签、自然语言或图像内容，统一转成可检查、可检索、可复用的 XML 结构。</p>
+            <ul>
+              <li>字段清晰：角色 / 光影 / 构图 / 氛围</li>
+              <li>支持内容完整性自查</li>
+              <li>方便后续维护个人 Prompt 资产</li>
+            </ul>
+          </article>
+          <article class="matrix-card corner-deco">
+            <div class="thumb-wrap"><img src="assets/newbie_model_doc.svg" alt="Newbie 模型专项提示词文档封面" /></div>
+            <div class="meta"><span>Module 04</span><span>模型专项适配</span></div>
+            <h3>Newbie 模型专项助手</h3>
+            <p>进一步针对 Newbie 的输出特点补充图像逆向工程、标签扩充和结构化 Prompt 生成逻辑。</p>
+            <ul>
+              <li>强调图文对齐度与复刻效率</li>
+              <li>支持环境联想与标签扩充</li>
+              <li>为特定模型的创作提供结构化规则</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="journey" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">User Journeys</span>
+            <h2>把四份文档，重新组织成四条完整用户路径。</h2>
+          </div>
+          <p>用户不会先关心“你写了哪些规则”，他们先关心的是：我现在有一个想法 / 一张图 / 一段 Prompt，到底怎么快速得到可用结果。所以这里按使用旅程来展示产品，而不是按文档顺序堆内容。</p>
+        </div>
+        <div class="journey-shell">
+          <div class="journey-nav glass-card">
+            <button class="tab-btn active" data-tab="write"><span class="idx">Journey 01</span><strong>从灵感到 Prompt</strong><span>适合从零描述画面，用自然语言转成可用提示词。</span></button>
+            <button class="tab-btn" data-tab="optimize"><span class="idx">Journey 02</span><strong>从已有 Prompt 到优化版本</strong><span>适合用户已经有一段提示词，但想重排结构或局部修改。</span></button>
+            <button class="tab-btn" data-tab="reverse"><span class="idx">Journey 03</span><strong>从参考图到结构化输出</strong><span>适合图片反推、复刻风格与拆解画面细节。</span></button>
+            <button class="tab-btn" data-tab="newbie"><span class="idx">Journey 04</span><strong>Newbie 模型专项适配</strong><span>适合追求更高图文对齐度和模型特定规则的用户。</span></button>
+          </div>
+          <div class="journey-view glass-card" id="journey-view">
+            <div class="journey-head">
+              <div>
+                <span class="eyebrow" style="margin-bottom:12px">Interactive Narrative</span>
+                <h3 id="journey-title">从灵感到 Prompt</h3>
+                <p id="journey-desc">用户不需要先会写专业标签，只需要用自然语言描述画面，系统再负责把角色、动作、场景、构图与光影拆成结构。</p>
+              </div>
+              <span class="type" id="journey-type">Natural language</span>
+            </div>
+            <div class="journey-cols">
+              <article class="journey-card corner-deco">
+                <h4>用户输入</h4>
+                <p id="journey-input-text">一个在图书馆窗边看书的女孩，下午阳光，安静氛围，偏日系动漫风。</p>
+              </article>
+              <article class="journey-card corner-deco">
+                <h4>产品动作</h4>
+                <ul id="journey-actions"></ul>
+              </article>
+              <article class="journey-card corner-deco">
+                <h4>用户获得什么</h4>
+                <ul id="journey-result"></ul>
+              </article>
+              <article class="journey-card corner-deco">
+                <h4>结构化示意</h4>
+                <pre class="code" id="journey-code"></pre>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="system" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Structured Prompt System</span>
+            <h2>为什么页面里要详细写 XML 与分类系统？因为这是产品中最重要的“底层秩序”。</h2>
+          </div>
+          <p>Newbie 专项文档包含详细的语义分类与 XML 字段规则。本节将它们归纳为六个设计维度，展示如何把零散的绘画要求转化为可拆解、可复用、可检视的提示词结构。</p>
+        </div>
+        <div class="taxonomy-grid">
+          <article class="taxonomy-card corner-deco">
+            <h3>角色与外观</h3>
+            <p>对人物身份和视觉特征进行拆解，适合支撑角色复刻与局部编辑。</p>
+            <div class="tag-cloud"><span>性别</span><span>年龄感</span><span>发型发色</span><span>表情</span><span>服装</span><span>饰品</span><span>职业 / 身份</span><span>状态</span></div>
+          </article>
+          <article class="taxonomy-card corner-deco">
+            <h3>动作与动态</h3>
+            <p>把静态描述变成动作层面的可控信息，是复刻“神态、姿势、动态感”的关键。</p>
+            <div class="tag-cloud"><span>姿势</span><span>行为动作</span><span>互动状态</span><span>运动感</span><span>情绪表现</span></div>
+          </article>
+          <article class="taxonomy-card corner-deco">
+            <h3>场景与环境</h3>
+            <p>区分室内外、自然与城市、时间与天气，帮助画面从“角色”走向“完整场景”。</p>
+            <div class="tag-cloud"><span>室内 / 室外</span><span>自然环境</span><span>城市环境</span><span>季节</span><span>天气</span><span>时间</span><span>背景元素</span></div>
+          </article>
+          <article class="taxonomy-card corner-deco">
+            <h3>物体与道具</h3>
+            <p>用于补充画面中的辅助元素，也支持模型在识别“图书馆 / 武器 / 装饰”时进行联想扩充。</p>
+            <div class="tag-cloud"><span>武器</span><span>家具</span><span>书本</span><span>道具</span><span>植物</span><span>电子设备</span><span>装饰品</span></div>
+          </article>
+          <article class="taxonomy-card corner-deco">
+            <h3>镜头、构图与光影</h3>
+            <p>这是很多普通 Prompt 写作里最容易缺失的层次，也是提高画面可控性的重点。</p>
+            <div class="tag-cloud"><span>远 / 中 / 近景</span><span>俯视 / 仰视</span><span>居中构图</span><span>三分法</span><span>柔光</span><span>背光</span><span>体积光</span></div>
+          </article>
+          <article class="taxonomy-card corner-deco">
+            <h3>氛围与自然语言摘要</h3>
+            <p>不是只有标签。系统还会保留完整画面描述，方便用户理解最终 Prompt 想表达的整体意图。</p>
+            <div class="tag-cloud"><span>情绪</span><span>氛围</span><span>caption</span><span>自然语言描述</span><span>内容自查</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Product Design Decisions</span>
+            <h2>真正能体现产品思考的，不是“功能很多”，而是“为什么这么设计”。</h2>
+          </div>
+          <p>这部分用来回答面试里最关键的问题：为什么选择做结构化输出？为什么支持图像反推？为什么还要支持自然语言局部修改？为什么需要 Newbie 的专项规则？</p>
+        </div>
+        <div class="decision-grid">
+          <article class="decision-card corner-deco">
+            <h3>为什么要用结构化 XML</h3>
+            <p>因为用户真正的问题不是“拿到一段完整的长 Prompt”，而是希望知道每个画面要素分别放在哪里、以后如何局部修改和复用。结构化输出把模糊经验变成可编辑、可检查的产品规则。</p>
+            <ul>
+              <li>减少标签堆砌导致的阅读成本</li>
+              <li>方便 Prompt 资产沉淀和二次编辑</li>
+              <li>更容易加上内容完整性自查</li>
+            </ul>
+          </article>
+          <article class="decision-card corner-deco">
+            <h3>为什么支持多种输入方式</h3>
+            <p>因为用户进入产品时所拥有的信息不同：有人只有一个创意想法，有人已经有 Prompt，还有人手上只有参考图。产品需要适应任务，而不是要求所有人都按同一格式输入。</p>
+            <ul>
+              <li>自然语言：降低上手门槛</li>
+              <li>Danbooru 标签：服务熟练用户</li>
+              <li>图片反推：服务复刻与分析型需求</li>
+            </ul>
+          </article>
+          <article class="decision-card corner-deco">
+            <h3>为什么一定要做“局部修改”</h3>
+            <p>优化文档中的案例很有代表性：用户不想重写一切，只想把人物换成初音未来，把色调改成青色、保留背景、增强动态感。这个场景说明产品不是只负责“生成”，还要负责“增量编辑”。</p>
+            <ul>
+              <li>支持指定元素替换与保留</li>
+              <li>降低大段 Prompt 重写成本</li>
+              <li>让产品更像工作台，而不是一次性生成器</li>
+            </ul>
+          </article>
+          <article class="decision-card corner-deco">
+            <h3>为什么要做模型专项适配</h3>
+            <p>通用 Prompt 并不一定能在不同模型上稳定工作。Newbie 文档的价值就在于：你没有停留在“通用可用”，而是继续针对特定模型的表达特点、图像对齐需求和结构化方式做了补充规则。</p>
+            <ul>
+              <li>降低不同模型之间的表达适配成本</li>
+              <li>围绕图文对齐与复刻场景调整提示词</li>
+              <li>把通用产品延伸到更垂直场景</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="delivery" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Delivery & Distribution</span>
+            <h2>不仅是设计规则，也要让用户真正用起来。</h2>
+          </div>
+          <p>产品面向 Discord 社群提供 Bot 对话使用路径，同时提供基于 Gemini API、Chatbox 与 Cherry Studio 的本地客户端使用指南，覆盖不同环境和技术熟练度的创作者。</p>
+        </div>
+        <div class="deliver-grid">
+          <article class="deliver-card corner-deco">
+            <h3>交付结构</h3>
+            <p>产品不是单一界面，而是围绕用户使用环境进行组织：在线社群里强调快速交互与即时任务，本地客户端里强调配置可行、调用稳定与长期使用。</p>
+            <div class="deliver-list">
+              <div class="deliver-row">
+                <strong>Discord Bot</strong>
+                <span>作为在线社群入口，承接用户的创作需求、Prompt 撰写、局部修改与图片反推任务，更适合即时交流与社区传播。</span>
+              </div>
+              <div class="deliver-row">
+                <strong>Chatbox</strong>
+                <span>作为本地客户端使用方案之一，配合 Gemini API 使用，面向愿意长期保存规则和独立调用能力的用户。</span>
+              </div>
+              <div class="deliver-row">
+                <strong>Cherry Studio</strong>
+                <span>作为另一套本地入口，为不同技术偏好用户提供替代路径，也降低单一工具选择造成的使用阻碍。</span>
+              </div>
+              <div class="deliver-row">
+                <strong>使用教程</strong>
+                <span>原始 PDF 中包含较完整的配置说明。公开作品集站点对这些内容进行了整理，只保留与产品逻辑相关的部分，移除敏感与不适合公开的细节。</span>
+              </div>
+            </div>
+          </article>
+          <article class="deliver-card corner-deco">
+            <h3>作为 GitHub Pages 展示站，你可以怎么用</h3>
+            <p>本站已整理为 GitHub Pages 静态展示项目，集中展示产品定位、用户场景、主要功能、结构规则与交付方式。</p>
+            <div class="steps">
+              <div class="step"><strong>Step 1｜上传代码</strong><span>站点发布目录为 <code>sd-prompt-studio</code>。</span></div>
+              <div class="step"><strong>Step 2｜开启 Pages</strong><span>在 GitHub 仓库的 Pages 设置中，将部署源指向主分支根目录。</span></div>
+              <div class="step"><strong>Step 3｜获得公开链接</strong><span>生成 <code>https://你的用户名.github.io/仓库名/</code> 形式的网址，可直接写进简历。</span></div>
+              <div class="step"><strong>Step 4｜后续补充内容</strong><span>你后面还可以在这个站里继续补录屏、Bot 截图、案例对比图和更细的迭代记录。</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Scenario Cases</span>
+            <h2>把抽象功能，落到几个真正好理解的案例上。</h2>
+          </div>
+          <p>这里不是为了再重复功能，而是为了让页面更像一个产品案例展示：展示用户怎么说、产品怎么理解、输出是怎样的。通过真实操作场景，让功能与用户价值之间的关系更加具体。</p>
+        </div>
+        <div class="case-grid">
+          <article class="case-card corner-deco">
+            <span class="label">Case 01</span>
+            <h3>自然语言撰写：从一句话开始</h3>
+            <p>用户只输入“一个在图书馆窗边看书的女孩，温暖午后，柔和光影”。产品不是直接胡乱补标签，而是按角色、背景、光影、氛围等字段组织 Prompt。</p>
+            <div class="mini-code">Input → 自然语言创意<br>Output → &lt;character&gt; / &lt;background&gt; / &lt;lighting&gt; / &lt;atmosphere&gt;</div>
+          </article>
+          <article class="case-card corner-deco">
+            <span class="label">Case 02</span>
+            <h3>Prompt 优化：定向改，不全重写</h3>
+            <p>用户基于已有提示词提出自然语言编辑请求：把人物改为初音未来、色调改为青色、背景不变、动态更生动、宝石改为青绿色。产品负责重组与保留逻辑。</p>
+            <div class="mini-code">Edit → 改人物 / 改色调 / 保背景<br>Value → 降低重复劳动与误修改风险</div>
+          </article>
+          <article class="case-card corner-deco">
+            <span class="label">Case 03</span>
+            <h3>图片反推：把“看懂一张图”变成可复刻</h3>
+            <p>上传一张参考图后，系统按人物、服装、场景、镜头、构图、光影等角度拆分内容，最终转写为结构化 XML Prompt，服务后续二次创作与风格复刻。</p>
+            <div class="mini-code">Image → 识别与分类 → XML<br>Goal → 提高图文对齐度与复刻效率</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="source" class="section">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Source Materials</span>
+            <h2>公开展示内容，来自四份原始项目文档。</h2>
+          </div>
+          <p>本节说明各原始文档与产品能力之间的对应关系。出于版权、隐私与配置安全考虑，暂不公开完整原始 PDF 和内部提示词文件。</p>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-card corner-deco">
+            <div class="doc-top"><span>PDF 01</span><strong>撰写 Stable Diffusion 提示词 AI 助手</strong></div>
+            <div class="thumb-wrap"><img src="assets/write_doc.svg" alt="撰写助手文档预览" /></div>
+            <p>支持通用创作、不同使用版本及图片反推入口，是产品最基础的能力来源之一。</p>
+          </article>
+          <article class="doc-card corner-deco">
+            <div class="doc-top"><span>PDF 02</span><strong>优化 Stable Diffusion 提示词 AI 助手</strong></div>
+            <div class="thumb-wrap"><img src="assets/optimize_doc.svg" alt="优化助手文档预览" /></div>
+            <p>提供结构重组与自然语言编辑场景的功能依据，明确了“局部修改”这一重要使用旅程。</p>
+          </article>
+          <article class="doc-card corner-deco">
+            <div class="doc-top"><span>PDF 03</span><strong>newbie 撰写小助手提示词</strong></div>
+            <div class="thumb-wrap"><img src="assets/newbie_xml_doc.svg" alt="newbie XML 文档预览" /></div>
+            <p>给出了详细的要素拆分体系和 XML 字段框架，是页面中“结构化系统”部分的主要依据。</p>
+          </article>
+          <article class="doc-card corner-deco">
+            <div class="doc-top"><span>PDF 04</span><strong>NEWBIE 模型提示词撰写助手</strong></div>
+            <div class="thumb-wrap"><img src="assets/newbie_model_doc.svg" alt="newbie 模型文档预览" /></div>
+            <p>补充图像逆向工程、标签扩充和模型专项适配逻辑，使项目从通用能力延伸到更细的模型场景。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="shell">
+        <div class="cta-box corner-deco">
+          <div>
+            <span class="eyebrow">Ready for Publishing</span>
+            <h2>把复杂 Prompt，变成更清晰的创作流程。</h2>
+            <p>本项目展示页基于 GitHub Pages 对外发布。后续后续可补充 Discord Bot 原始截图、交互录屏与生图对照案例，以增加可验证的实际产出证据。</p>
+          </div>
+          <a href="#top" class="btn-primary">回到顶部</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="shell footer-line">
+        <div>Stable Diffusion 提示词创作与优化助手 · AI 产品设计与策划 · 独立项目</div>
+        <div>展示站内容基于你提供的四份 PDF 与已确认项目数据整理</div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    const journeyData = {
+      write: {
+        title: '从灵感到 Prompt',
+        type: 'Natural language',
+        desc: '用户不需要先会写专业标签，只需要用自然语言描述画面，系统再负责把角色、动作、场景、构图与光影拆成结构。',
+        input: '一个在图书馆窗边看书的女孩，下午阳光，安静氛围，偏日系动漫风。',
+        actions: [
+          '识别核心创作意图：人物、动作、场景、风格与光影。',
+          '按字段拆分信息，而不是直接输出一长串无序标签。',
+          '在保留用户原意的基础上补充合理的环境元素与画面氛围。'
+        ],
+        result: [
+          '一段用于组织与二次转写的结构化 Prompt。',
+          '更清楚的字段结构，便于以后单独修改角色、背景或光影。',
+          '即使不熟 Prompt 工程，也能看懂生成逻辑。'
+        ],
+        code: `<character_1>\n  <gender>1girl</gender>\n  <action>reading a book</action>\n  <expression>gentle, focused</expression>\n</character_1>\n<general_tags>\n  <background>library, window, bookshelf</background>\n  <lighting>soft afternoon light</lighting>\n  <atmosphere>quiet, warm</atmosphere>\n</general_tags>`
+      },
+      optimize: {
+        title: '从已有 Prompt 到优化版本',
+        type: 'Prompt optimization',
+        desc: '适合已有提示词但需要定向修改的用户。产品不是重写一切，而是在保持关键条件的前提下，重组结构、替换目标元素。',
+        input: '把提示词修改为人物是初音未来，色彩改为青色色调，背景不变，动态更生动一些，宝石类改为青绿色。',
+        actions: [
+          '读取原始 Prompt 的结构与语义重点。',
+          '按自然语言指令提取“修改项”和“保留项”。',
+          '对人物、色调、动态和饰品部分进行局部重组，同时尽量保留原背景。'
+        ],
+        result: [
+          '不需要从头重写整段提示词。',
+          '编辑目标更明确，修改成本更低。',
+          '更适合已有素材的二次创作与迭代。'
+        ],
+        code: `// keep background\n<character>Hatsune Miku</character>\n<palette>cyan / teal tone</palette>\n<action>more vivid dynamic pose</action>\n<objects>cyan-green gemstones</objects>\n<background>unchanged</background>`
+      },
+      reverse: {
+        title: '从参考图到结构化输出',
+        type: 'Image reverse engineering',
+        desc: '当用户上传一张图时，系统尝试像“读图”一样，把角色外观、服装、环境、镜头、光影与构图拆出来，并形成 XML Prompt。',
+        input: '上传一张参考图：希望识别人物、动作、服装、构图、风格与颜色，并输出 XML Prompt。',
+        actions: [
+          '识别人物数量、发型发色、服装饰品、姿势神态。',
+          '同时抽取背景环境、关键物体、光影条件与镜头视角。',
+          '将所有信息按预设框架归类并转写为英文标签。'
+        ],
+        result: [
+          '更适合复刻画面与二次创作。',
+          '让“这张图好看但说不清哪里好”变成可操作的创作依据。',
+          '也能为后续局部修改与模型适配提供基础结构。'
+        ],
+        code: `<character_1>\n  <appearance>[hair, face, expression]</appearance>\n  <clothing>[clothes, accessories]</clothing>\n  <action>[pose and motion]</action>\n</character_1>\n<general_tags>\n  <background>[scene]</background>\n  <perspective>[camera view]</perspective>\n  <lighting>[light setup]</lighting>\n</general_tags>`
+      },
+      newbie: {
+        title: 'Newbie 模型专项适配',
+        type: 'Model adaptation',
+        desc: '基于 Newbie 文档中的专项规则，进一步增强图文对齐度与结构稳定性，让产品不止是“通用能用”，而是“特定模型更好用”。',
+        input: '把自然语言 / dantag / 图片内容转写为适配 Newbie 的 XML Prompt，并尽量补充相关环境元素与描述。',
+        actions: [
+          '根据 Newbie 模型特点整理分类字段与表达规范。',
+          '当识别到“图书馆”等语义时，可扩充相关环境元素，如 bookshelf、book。',
+          '生成更完整的 XML Prompt，并保留 caption 等总结性描述。'
+        ],
+        result: [
+          '以图文对齐为目标的专项提示词规则。',
+          '更完整的场景补充与标签一致性。',
+          '便于在特定模型下复用统一的输出规则。'
+        ],
+        code: `<background>library, bookshelf, books, window light</background>\n<caption>a quiet anime-style girl reading in a library by the window</caption>\n<self_check>category complete / format valid / details retained</self_check>`
+      }
+    };
+
+    const buttons = document.querySelectorAll('.tab-btn');
+    const title = document.getElementById('journey-title');
+    const type = document.getElementById('journey-type');
+    const desc = document.getElementById('journey-desc');
+    const input = document.getElementById('journey-input-text');
+    const actions = document.getElementById('journey-actions');
+    const result = document.getElementById('journey-result');
+    const code = document.getElementById('journey-code');
+
+    function renderJourney(key){
+      const data = journeyData[key];
+      if(!data) return;
+      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === key));
+      title.textContent = data.title;
+      type.textContent = data.type;
+      desc.textContent = data.desc;
+      input.textContent = data.input;
+      actions.innerHTML = data.actions.map(item => `<li>${item}</li>`).join('');
+      result.innerHTML = data.result.map(item => `<li>${item}</li>`).join('');
+      code.textContent = data.code;
+    }
+
+    buttons.forEach(btn => btn.addEventListener('click', () => renderJourney(btn.dataset.tab)));
+    renderJourney('write');
+  </script>
+</body>
+</html>
