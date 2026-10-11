@@ -1,3 +1,5 @@
+import {setupDraft} from './draft.js?v=20261011';
+import {LOOKS,lookField} from './looks.js?v=20261011';
 import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-3';
 import {textureHeight} from './brush-textures.js';
 import {LiquidRenderer} from './liquid-renderer.js?v=20260928-3';
@@ -107,7 +109,7 @@ function applyAloePreset(){
  toast('已应用亚克力 · 芦荟胶。可在「效果」调整，或撤销恢复。');
 }
 let aloePreviewRenderer;
-function renderAloePreview(){try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(fieldW,fieldH),fieldW,fieldH);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
+function renderAloePreview(){renderLooks();try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(fieldW,fieldH),fieldW,fieldH);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
 let previewRenderer;
 function previewPreset(name){
  if(!ready)return;
@@ -311,6 +313,27 @@ async function renderLibrary(){
 }
 function showLibrary(save=false){$('presetDialog').showModal();$('presetName').value=save?currentName+' · 玻璃习作':'';renderLibrary();if(save)$('presetName').focus();}
 
+
+const draftIds=new WeakMap();let draftId=0;const draftBlobs=new WeakMap();
+function objectKey(o){if(!draftIds.has(o))draftIds.set(o,++draftId);return draftIds.get(o);}
+function captureDraft(){
+ if(!ready||stroke?.tx||albumSwitch||original||previousComparison)return null;
+ const items=album.map((item,i)=>i===activeImage?{...item,source:originalSource,state:snapshot(),fieldW,fieldH,currentName,zoom,panX,panY}: {...item});
+ const index=activeImage;
+ const key=JSON.stringify([index,items.map(i=>[i.source?objectKey(i.source):i.url,i.state?objectKey(i.state.scene):0,i.state?.settings,i.state?.strokeCount])]);
+ return {key,serialize:async()=>({version:1,active:index,items:await Promise.all(items.map(async item=>{
+ let image;if(item.source){if(!draftBlobs.has(item.source)){const c=document.createElement('canvas');c.width=item.source.width;c.height=item.source.height;c.getContext('2d').drawImage(item.source,0,0);draftBlobs.set(item.source,canvasBlob(c));}image=await draftBlobs.get(item.source);}else image=await (await fetch(item.url)).blob();
+ return {name:item.name,image,state:item.state,fieldW:item.fieldW,fieldH:item.fieldH,currentName:item.currentName,zoom:item.zoom||1,panX:item.panX||0,panY:item.panY||0};
+ }))})};
+}
+async function restoreDraft(data){
+ const restored=await Promise.all(data.items.map(async item=>{const url=URL.createObjectURL(item.image);const source=new Image();try{source.src=url;await source.decode();}catch(e){URL.revokeObjectURL(url);throw e;}return {...item,url,source,history:[],future:[],hasEdits:true,selected:item.state?.settings.brushTexture};}));
+ album.splice(0,album.length,...restored);activeImage=-1;await switchImage(Math.min(data.active,album.length-1));renderAlbum();
+}
+const lookRenderers=new Map();
+function renderLooks(){if(!originalSource)return;for(const look of LOOKS){try{let canvas=document.getElementById('look-'+look.id);if(!canvas)continue;let r=lookRenderers.get(look.id);if(!r){r=new LiquidRenderer(canvas);lookRenderers.set(look.id,r);}r.setImage(originalSource);r.setField(lookField(look.shape,fieldW,fieldH),fieldW,fieldH);r.draw(300,Math.max(2,Math.round(300*imageHeight/imageWidth)),false,{...DEFAULT_SETTINGS,...look.settings,glassColor:look.glass,glassTint:look.tint,glassTexture:look.texture});}catch(e){console.error(e);}}}
+function applyLook(look){if(!ready||exporting)return;saveHistory();const layer=layerFromField(lookField(look.shape,fieldW,fieldH),fieldW,fieldH,{kind:'fusion'});scene={...createDocument(fieldW,fieldH),layers:layer?[layer]:[]};strokeCount=1;updateStrokeCount();applySettings({values:{...DEFAULT_SETTINGS,...look.settings,glassTint:look.tint},glassColor:look.glass,glassTexture:look.texture,tool:'paint'});original=false;previousComparison=false;$('originalBadge').hidden=true;dirty=true;hasEdits=true;requestRender();$('effectsDrawer').close();document.dispatchEvent(new CustomEvent('studio:panel',{detail:'effect'}));toast('已应用 '+look.name+'，可继续调整或撤销。');}
+for(const look of LOOKS){const card=document.createElement('article');card.className='effect-card';card.innerHTML='<canvas id="look-'+look.id+'" aria-label="'+look.name+'效果预览"></canvas><div class="effect-card-info"><h3>'+look.name+'</h3><p>'+look.note+'</p><div class="effect-card-actions"><button data-look="'+look.id+'">应用效果 →</button></div></div>';document.querySelector('.effects-grid').append(card);card.querySelector('button').onclick=()=>applyLook(look);}
 try{
  renderer=new LiquidRenderer($('editor'));
  document.querySelectorAll('[data-export-tab]').forEach(button=>{
@@ -342,7 +365,7 @@ try{
  document.querySelectorAll('.stroke-adjust').forEach(el=>el.addEventListener('input',()=>{hasEdits=true;requestRender();}));
  document.querySelectorAll('input[type=range]').forEach(el=>{el.addEventListener('pointerdown',()=>{if(ready)saveHistory();});el.addEventListener('keydown',e=>{if(ready&&!e.repeat&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))saveHistory();});});
  $('resetStrokeAdjust').onclick=()=>{if(!ready)return;saveHistory();['strokeIntensity','strokeThickness','strokeSoftness'].forEach((id,i)=>{$(id).value=[100,100,0][i];updateRange($(id));});requestRender();toast('已重置这组涂抹的整体调整。');};
- $('restoreAll').onclick=restoreAll;$('applyAloe').onclick=applyAloePreset;$('paintAloe').onclick=()=>{if(!ready||exporting)return;saveHistory();applySettings({...captureSettings(),values:{...captureSettings().values,...ALOE_SETTINGS,lightSense:Number($('lightSense').value),brushSize:80,amount:35,softness:80},glassColor:'clear',glassTexture:'smooth',brushTexture:'aloe',tool:'paint'});requestRender();toast('已选芦荟胶。按住打圈涂抹，重复经过会堆厚；可用「推开」揉开。');};
+ $('restoreAll').onclick=restoreAll;$('applyAloe').onclick=applyAloePreset;$('paintAloe').onclick=()=>{if(!ready||exporting)return;saveHistory();selectPresetButton('aloe');setTool('paint');for(const [id,value] of Object.entries({brushSize:80,amount:35,softness:80})){$(id).value=value;updateRange($(id));}toast('已选芦荟胶画笔，接下来可以手动涂抹。');};
  document.querySelectorAll('[data-layer]').forEach(el=>el.onclick=()=>{$('materialSidebar').dataset.active=el.dataset.layer;document.querySelectorAll('[data-layer]').forEach(b=>{const on=b===el;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});});
  $('savePreset').onclick=()=>showLibrary(true);$('openLibrary').onclick=()=>showLibrary();$('closeLibrary').onclick=()=>$('presetDialog').close();$('presetForm').onsubmit=e=>{e.preventDefault();saveCurrentPreset($('presetName').value);};
  $('undo').onclick=undo;$('redo').onclick=redo;$('clear').onclick=()=>{clearStrokes();toast('涂抹已清空，玻璃材质与侧边设置已保留。');};$('resetColor').onclick=()=>{if(ready)saveHistory();resetColors();};
@@ -356,9 +379,9 @@ function typingTarget(el){return el?.isContentEditable||el?.tagName==='TEXTAREA'
  document.addEventListener('keydown',e=>{if(typingTarget(e.target))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(e.ctrlKey||e.metaKey||e.altKey)return;if(e.target.tagName==='SELECT')return;if(e.code==='Space'&&e.target===document.body){e.preventDefault();spaceDown=true;$('editor').style.cursor='grab';$('brushCursor').hidden=true;}if(e.key.toLowerCase()==='b')setTool('paint');if(e.key.toLowerCase()==='p')setTool('push');if(e.key.toLowerCase()==='e')setTool('erase');});
  document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('editor').style.cursor='none';}});window.addEventListener('blur',()=>{spaceDown=false;endStroke();pointers.clear();compare(false);});
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
- loadImage('assets/sample.png','示例照片',true);
+ loadImage('assets/sample.png','示例照片',true).then(()=>setupDraft({capture:captureDraft,restore:restoreDraft,notify:toast}));
  renderLibrary();
- import('./recording.js?v=studio-20260920').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
+ import('./recording.js?v=20261011').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.
