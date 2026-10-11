@@ -11,7 +11,8 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
   $('recordingSection').dataset.state=state;$('recordingSection').dataset.mode=mode.value;
   const recording=state==='recording',processing=state==='processing',done=state==='done';
   start.hidden=recording||processing;stop.hidden=!recording&&!processing;
-  start.textContent=armed?'确认开始':mode.value==='preset'?'生成并下载':'准备录制';
+  start.textContent=armed?'确认开始':mode.value==='preset'?($('autoDownload').checked?'生成并下载':'生成动画'):'准备录制';
+  $('cancelRecording').hidden=!recording&&!processing&&!armed;
   stop.textContent=processing?'正在生成文件…':mode.value==='preset'?'■ 停止并导出当前片段':'■ 停止并生成文件';
   $('recordTimer').hidden=!recording;
   $('recordStateLabel').textContent={idle:'待录制',recording:'录制中',processing:'生成中',done:'已完成',error:'未完成'}[state];
@@ -36,7 +37,7 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  }
  let previewFrame=requestAnimationFrame(livePreview);setState('idle');
  const supported = typeof MediaRecorder !== 'undefined' && typeof canvas.captureStream === 'function';
- const mime = supported ? ['video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m)) : null;
+ const mime = supported ? ['video/mp4','video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm'].find(m=>MediaRecorder.isTypeSupported(m)) : null;
  if(!mime) { format.options[0].disabled=true; format.value='gif'; }
  else format.options[0].textContent=mime.includes('mp4')?'MP4':'WebM';
  function cleanup(s) {
@@ -59,8 +60,10 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
   const holder=$('recordResult'); holder.replaceChildren();
   const media=document.createElement(extension==='gif'?'img':'video');media.src=resultURL;
   if(extension==='gif')media.alt='录制的效果动画';else{media.controls=true;media.loop=true;media.playsInline=true;}
-  holder.append(media);setState('done'); status.textContent='录制完成，已请求下载；也可再次点击下载';link.click();
+  holder.append(media);setState('done'); status.textContent=$('autoDownload').checked?'已完成并下载，可在上方播放检查。':'已生成，可以预览后下载。';if($('autoDownload').checked)link.click();
  }
+ $('autoDownload').onchange=()=>{if(!session)setState($('recordingSection').dataset.state);};
+ $('cancelRecording').onclick=()=>{const s=session;if(s){session=null;if(s.recorder?.state==='recording')s.recorder.stop();cleanup(s);}cancelArm();setState('idle');status.textContent='已取消';};
  function frame(s) {
   if(session!==s||s.stopping)return;
   const elapsed=s.auto&&s.gif?s.index*100:performance.now()-s.started;
