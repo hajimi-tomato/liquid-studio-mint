@@ -54,3 +54,6 @@ header{background:#f5f7ef}.desk{grid-template-columns:56px 244px minmax(270px,1f
 .motion-thumb{overflow:hidden}.motion-item:hover .m0 img{animation:motion-x 1.8s ease-in-out infinite alternate}.motion-item:hover .m1 img{animation:motion-y 1.8s ease-in-out infinite alternate}.motion-item:hover .m2 img{animation:motion-light 1.8s ease-in-out infinite alternate}@keyframes motion-x{to{transform:translateX(5px) scale(1.1)}}@keyframes motion-y{to{transform:translateY(5px) scale(1.1)}}@keyframes motion-light{to{filter:brightness(1.3)}}
 @media(max-width:1050px) and (min-width:781px){.desk{grid-template-columns:48px 210px minmax(220px,1fr) 210px}}@media(max-width:780px){.desk{grid-template-columns:52px minmax(0,1fr)}}@media(prefers-reduced-motion:reduce){.motion-item:hover img{animation:none!important}}
 .motion-thumb canvas{width:100%;height:100%;object-fit:cover}.scope-heading{margin-top:14px}.material-section{border-top:0;padding-top:0}.inspector .range{margin-top:8px}.inspector .range>div{margin-bottom:2px}.inspector .range input{margin-bottom:3px}.scope-note{margin-bottom:8px}.scope-heading p{margin-bottom:8px}
+
+/* Dedicated adjustment panel alongside brush, glass and color. */
+#existingStrokes{border-top:0;margin-top:0;padding-top:0}
