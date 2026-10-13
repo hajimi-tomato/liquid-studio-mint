@@ -3,9 +3,13 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  const $ = id => document.getElementById(id);
  let session=null, resultURL=null, armed=false, animationPreview=null, previewStarted=0, recommendedSource=null;
  const mode=$("motionMode"), trigger=$("recordTrigger");
- function stopPreview(){animationPreview?.dispose();animationPreview=null;$("previewAnimation").textContent="▷";$("previewAnimation").setAttribute("aria-label","播放预览");$("previewAnimation").setAttribute("aria-pressed","false");}
+ function stopPreview(){if($("motionOverlay"))$("motionOverlay").hidden=true;animationPreview?.dispose();animationPreview=null;$("previewAnimation").textContent="播放动画预览";$("previewAnimation").setAttribute("aria-label","播放预览");$("previewAnimation").setAttribute("aria-pressed","false");}
  function cancelArm(){const wasArmed=armed;armed=false;trigger.hidden=true;if(wasArmed&&!session)setState("idle");}
  function recommend(force=false){if(!isReady())return;const result=analyseImage();if(!force&&recommendedSource===result.source)return;recommendedSource=result.source;$("animationStyle").value=result.style;$("animationStyle").dataset.recommended=result.style;$("motionRecommendation").textContent=result.reason;document.dispatchEvent(new Event("studio:recording"));}
+ let hoverAnimation=null,hoverButton=null,hoverStart=0;
+ function stopHover(){hoverAnimation?.dispose();hoverAnimation=null;hoverButton=null;}
+ document.querySelectorAll('[data-animation]').forEach(b=>{const thumb=b.querySelector('.motion-thumb'),c=document.createElement('canvas');c.width=144;c.height=90;thumb.replaceChildren(c,b.querySelector('.motion-thumb b'));b.title='悬浮查看当前图片的动画效果';const startHover=()=>{if(session||!isReady())return;stopHover();hoverAnimation=createAnimation();hoverButton=b;hoverStart=performance.now();};b.addEventListener('mouseenter',startHover);b.addEventListener('focus',startHover);b.addEventListener('mouseleave',stopHover);b.addEventListener('blur',stopHover);});
+ document.addEventListener('studio:render',()=>{stopHover();document.querySelectorAll('.motion-thumb canvas').forEach(c=>c.getContext('2d').drawImage(canvas,0,0,c.width,c.height));});
  const format=$('motionFormat'), start=$('startRecording'), stop=$('stopRecording'), status=$('recordStatus');
  function setState(state){
   $('recordingSection').dataset.state=state;$('recordingSection').dataset.mode=mode.value;
@@ -27,12 +31,15 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  }
  // Independent live preview remains visible before capture and during parameter edits.
  function livePreview(){
+  if(hoverAnimation&&hoverButton){const c=hoverButton.querySelector('canvas');c.getContext('2d').drawImage(hoverAnimation.render(((performance.now()-hoverStart)/1000%4)/4,hoverButton.dataset.animation,144,90),0,0);}
+
   if(!$('videoExportPanel').hidden&&!$('videoLiveFrame').hidden&&canvas.width&&canvas.height){
    const p=$('videoPreview'),scale=440/Math.max(canvas.width,canvas.height),w=Math.max(1,Math.round(canvas.width*scale)),h=Math.max(1,Math.round(canvas.height*scale));
    if(p.width!==w||p.height!==h){p.width=w;p.height=h;}
    const source=session?.auto?session.surface:animationPreview?animationPreview.render(((performance.now()-previewStarted)/1000%Number($('animationDuration').value))/Number($('animationDuration').value),$('animationStyle').value,w,h):canvas;p.getContext('2d').drawImage(source,0,0,w,h);
   }
   if(animationPreview){const duration=Number($('animationDuration').value),elapsed=(performance.now()-previewStarted)/1000%duration;$('playback').style.setProperty('--progress',elapsed/duration*100+'%');$('playback').querySelector('span').textContent='00:'+String(Math.floor(elapsed)).padStart(2,'0');}
+  if($('motionOverlay')){const on=!!animationPreview||!!session?.auto;$('motionOverlay').hidden=!on;if(on){const c=$('centralMotion'),source=session?.auto?session.surface:animationPreview.render(((performance.now()-previewStarted)/1000%Number($('animationDuration').value))/Number($('animationDuration').value),$('animationStyle').value,Math.min(1280,canvas.width),Math.round(Math.min(1280,canvas.width)*canvas.height/canvas.width));if(c.width!==source.width||c.height!==source.height){c.width=source.width;c.height=source.height;}c.getContext('2d').drawImage(source,0,0);$('exitMotion').hidden=!!session;}}
   previewFrame=requestAnimationFrame(livePreview);
  }
  let previewFrame=requestAnimationFrame(livePreview);setState('idle');
@@ -78,7 +85,7 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
   }
  }
  function begin(){
-  armed=false;trigger.hidden=true;stopPreview();
+  armed=false;trigger.hidden=true;stopPreview();stopHover();
   if(session)return;
   if(!isReady()){notify('请等待图片加载完成后再开始录制。');return;}
   const gif=format.value==='gif',surface=document.createElement('canvas');
@@ -121,9 +128,10 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  mode.onchange=()=>{cancelArm();stopPreview();setState('idle');};
  $('recommendMotion').onclick=()=>{stopPreview();recommend(true);};
  $('videoExportTab').addEventListener('click',()=>{if(!session)recommend();});
+ document.addEventListener('studio:batch-start',()=>{stopPreview();stopHover();});
  $('imageExportTab').addEventListener('click',()=>{cancelArm();stopPreview();});
  $('animationStyle').onchange=stopPreview;$('animationDuration').onchange=stopPreview;
- $('previewAnimation').onclick=()=>{if(animationPreview){stopPreview();return;}if(!isReady())return;animationPreview=createAnimation();previewStarted=performance.now();setState('idle');$('previewAnimation').textContent='Ⅱ';$('previewAnimation').setAttribute('aria-label','暂停预览');$('previewAnimation').setAttribute('aria-pressed','true');};
+ $('previewAnimation').onclick=()=>{if(animationPreview){stopPreview();return;}if(!isReady())return;animationPreview=createAnimation();previewStarted=performance.now();setState('idle');$('previewAnimation').textContent='停止预览';$('previewAnimation').setAttribute('aria-label','暂停预览');$('previewAnimation').setAttribute('aria-pressed','true');};
  document.addEventListener('input',e=>{if(e.target.matches('input[type=range]'))stopPreview();});
  document.addEventListener('click',e=>{if(e.target.closest('.left-panel,.unified-workspace,#presetList'))stopPreview();});
  document.addEventListener('change',e=>{if(e.target.matches('#fileInput,#folderInput'))stopPreview();});
@@ -133,6 +141,6 @@ export function setupRecording({canvas, isReady, notify, createAnimation, analys
  canvas.addEventListener('webglcontextlost',()=>{if(session)stop.click();});
  window.addEventListener('beforeunload',e=>{if(session){e.preventDefault();e.returnValue='';}});
  document.dispatchEvent(new Event('studio:recording-ready'));
- window.addEventListener('pagehide',()=>{cancelAnimationFrame(previewFrame);stopPreview();if(session)cleanup(session);if(resultURL)URL.revokeObjectURL(resultURL);});
+ window.addEventListener('pagehide',()=>{cancelAnimationFrame(previewFrame);stopPreview();stopHover();if(session)cleanup(session);if(resultURL)URL.revokeObjectURL(resultURL);});
 }
 

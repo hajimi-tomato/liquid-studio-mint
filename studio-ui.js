@@ -1,6 +1,6 @@
 // Presentation bindings for the approved studio prototype. Rendering stays in app.js.
 const $=id=>document.getElementById(id),all=s=>[...document.querySelectorAll(s)];
-function panel(name){document.querySelector('.desk').classList.toggle('show-export',name==='export');all('[data-panel-target]').forEach(b=>{const on=b.dataset.panelTarget===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on);});if(name!=='export'){all('.inspector-panel').forEach(p=>p.hidden=p.dataset.panel!==name);$('materialSidebar').scrollTop=0;}}
+function panel(name){if(name==='effect')name='paint';document.querySelector('.desk').classList.toggle('show-export',name==='export');all('[data-panel-target]').forEach(b=>{const on=b.dataset.panelTarget===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on);});if(name!=='export'){all('.inspector-panel').forEach(p=>p.hidden=p.dataset.panel!==name);$('materialSidebar').scrollTop=0;}}
 all('[data-panel-target]').forEach(b=>b.addEventListener('click',()=>panel(b.dataset.panelTarget)));document.addEventListener('studio:panel',e=>panel(e.detail));panel('paint');
 all('[data-animation]').forEach(b=>b.onclick=()=>{if($('animationStyle').disabled)return;$('animationStyle').value=b.dataset.animation;$('animationStyle').dispatchEvent(new Event('change'));syncMotion();});
 all('[data-duration]').forEach(b=>b.onclick=()=>{if($('animationDuration').disabled)return;$('animationDuration').value=b.dataset.duration;$('animationDuration').dispatchEvent(new Event('change'));syncMotion();});
@@ -24,3 +24,27 @@ const formatLabel=$('motionFormat').closest('.setting-row').querySelector('span'
 function syncVideoSize(){const canvas=$('editor'),limit=$('motionFormat').value==='gif'?640:1280,scale=Math.min(1,limit/Math.max(canvas.width,canvas.height));$('videoDimensions').textContent=Math.max(2,Math.round(canvas.width*scale/2)*2)+' × '+Math.max(2,Math.round(canvas.height*scale/2)*2);}
 $('motionFormat').addEventListener('change',syncVideoSize);document.addEventListener('studio:render',syncVideoSize);
 document.addEventListener('studio:recording',()=>{previewHeading.textContent=$('recordingSection').dataset.state==='done'?'2 · 导出结果':'2 · 播放预览';syncVideoSize();});
+
+// Scope-based inspector: tools, next stroke, then all existing strokes.
+const paintPanel=document.querySelector('[data-panel="paint"]'),existing=$('existingStrokes');
+document.querySelector('[data-panel-target="effect"]').hidden=true;
+paintPanel.querySelector('h3').textContent='创作';
+paintPanel.querySelector('.stroke-preview').hidden=true;
+const nextHeading=document.createElement('div');nextHeading.className='scope-heading';nextHeading.innerHTML='<h3>下一笔</h3><p>只影响接下来画出的笔触</p>';
+paintPanel.querySelector('.toolbuttons').after(nextHeading);
+nextHeading.after(paintPanel.querySelector('.material-section'));
+existing.classList.remove('inspector-panel');existing.hidden=false;paintPanel.append(existing);
+existing.querySelector('h3').textContent='已有涂抹';existing.querySelector('.effect-preview').hidden=true;
+const scopeNote=document.createElement('p');scopeNote.className='scope-note';existing.querySelector('.section-title').after(scopeNote);
+const extra=existing.querySelector('details');extra.querySelector('summary').firstChild.textContent='更多光线细节 ';
+for(const id of ['refraction','lightSense'])extra.before($(id).closest('.range'));
+$('strokeSoftnessLabel').textContent='柔化';
+function syncScope(){const empty=parseInt($('strokeCount').textContent)===0;scopeNote.textContent=empty?'涂抹后可调整':'作用于全部已有笔触';existing.querySelectorAll('input,button').forEach(el=>el.disabled=empty);const t=document.querySelector('[data-tool].selected')?.dataset.tool;nextHeading.querySelector('h3').textContent=t==='paint'?'下一笔':'工具设置';nextHeading.querySelector('p').textContent=t==='paint'?'只影响接下来画出的笔触':'拖动编辑已有涂抹';}
+new MutationObserver(syncScope).observe($('strokeCount'),{childList:true,subtree:true});document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',syncScope));syncScope();
+// Keep output preview on the main canvas, preserving the editable renderer underneath.
+const motionOverlay=document.createElement('div');motionOverlay.id='motionOverlay';motionOverlay.hidden=true;motionOverlay.innerHTML='<canvas id="centralMotion"></canvas><button id="exitMotion">返回编辑</button>';$('stage').append(motionOverlay);
+motionOverlay.addEventListener('pointerdown',e=>e.stopPropagation());
+$('exitMotion').onclick=()=>$('previewAnimation').click();
+$('previewAnimation').textContent='播放动画预览';
+$('imageExportPanel').querySelector('.export-photo').hidden=true;
+$('imageExportPanel').querySelector('.section-title h3').textContent='导出图片';
