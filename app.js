@@ -1,3 +1,4 @@
+import {zipFiles} from './zip.js';
 import {setupDraft} from './draft.js?v=20261011';
 import {LOOKS,lookField} from './looks.js?v=20261011';
 import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-3';
@@ -141,7 +142,7 @@ function cursor(event){if(!ready)return;const p=coords(event),el=$('brushCursor'
 // Single commit point for a gesture: pointer up/cancel, lost capture, blur, pinch, image switch, export.
 function endStroke(){if(stroke?.tx){try{scene=finishStroke(stroke.tx);}catch(error){console.error(error);toast('这一笔未能保存：'+error.message);}dirty=true;}stroke=null;pinch=null;if(ready)requestRender();}
 function beginPinch(){if(pointers.size!==2)return;endStroke();const [a,b]=[...pointers.values()];pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom,midX:(a.x+b.x)/2,midY:(a.y+b.y)/2,panX,panY};}
-function handleDown(e){if(!ready||exporting||e.button>1)return;e.preventDefault();$('stage').setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){beginPinch();return;}if(pointers.size>2)return;
+function handleDown(e){if(batchBusy)return;if(!ready||exporting||e.button>1)return;e.preventDefault();$('stage').setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===2){beginPinch();return;}if(pointers.size>2)return;
  if(spaceDown||e.button===1){endStroke();stroke={pan:true,x:e.clientX,y:e.clientY,panX,panY};return;}
  if(e.target!==$('editor'))return;
  endStroke();const before=snapshot();let tx;
@@ -157,6 +158,7 @@ function handleMove(e){cursor(e);if(!pointers.has(e.pointerId))return;pointers.s
 }
 function handleUp(e){pointers.delete(e.pointerId);if(!stroke?.tx||e.pointerId===stroke.pointerId)endStroke();if(e.pointerType==='touch')$('brushCursor').hidden=true;}
 
+let batchMode=false,batchBusy=false;const batchSelection=new Set();
 const album=[];let activeImage=-1,albumSwitch=false;
 function recordingBusy(){return ['recording','processing'].includes($('recordingSection').dataset.state);}
 function rememberImage(){
@@ -177,7 +179,7 @@ function renderAlbum(){
   const thumb=document.createElement('canvas');thumb.width=100;thumb.height=66;
   if(item.thumbnail||item.source)thumb.getContext('2d').drawImage(item.thumbnail||item.source,0,0,100,66);
   else {const img=new Image();img.onload=()=>thumb.getContext('2d').drawImage(img,0,0,100,66);img.src=item.url;}
-  const label=document.createElement('span');label.textContent=item.name;button.append(thumb,label);button.onclick=()=>switchImage(index);list.append(button);
+  const label=document.createElement('span');label.textContent=item.name;button.append(thumb,label);button.onclick=()=>{if(batchMode){batchSelection.has(index)?batchSelection.delete(index):batchSelection.add(index);renderAlbum();syncBatch();}else switchImage(index);};button.classList.toggle('batch-selected',batchSelection.has(index));list.append(button);
  });
 }
 async function switchImage(index){
@@ -317,7 +319,7 @@ function showLibrary(save=false){$('presetDialog').showModal();$('presetName').v
 const draftIds=new WeakMap();let draftId=0;const draftBlobs=new WeakMap();
 function objectKey(o){if(!draftIds.has(o))draftIds.set(o,++draftId);return draftIds.get(o);}
 function captureDraft(){
- if(!ready||stroke?.tx||albumSwitch||original||previousComparison)return null;
+ if(!ready||batchBusy||stroke?.tx||albumSwitch||original||previousComparison)return null;
  const items=album.map((item,i)=>i===activeImage?{...item,source:originalSource,state:snapshot(),fieldW,fieldH,currentName,zoom,panX,panY}: {...item});
  const index=activeImage;
  const key=JSON.stringify([index,items.map(i=>[i.source?objectKey(i.source):i.url,i.state?objectKey(i.state.scene):0,i.state?.settings,i.state?.strokeCount])]);
@@ -381,7 +383,7 @@ function typingTarget(el){return el?.isContentEditable||el?.tagName==='TEXTAREA'
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
  loadImage('assets/sample.png','示例照片',true).then(()=>setupDraft({capture:captureDraft,restore:restoreDraft,notify:toast}));
  renderLibrary();
- import('./recording.js?v=20261011').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
+ import('./recording.js?v=20261013').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}
 
 // Use the same editor actions for supported agent-enabled browsers.
@@ -403,3 +405,35 @@ if(document.modelContext?.registerTool){
  }];
  for(const definition of tools){try{Promise.resolve(document.modelContext.registerTool(definition,{signal:lifecycle.signal})).catch(()=>{});}catch{}}
 }
+
+// Multi-image operations reuse the same renderer and document resampling as saved effects.
+
+const batchToggle=document.createElement('button');batchToggle.id='batchToggle';batchToggle.textContent='多选';$('imageTotal').after(batchToggle);
+const batchBar=document.createElement('div');batchBar.id='batchBar';batchBar.hidden=true;batchBar.innerHTML='<span id="batchCount"></span><button id="batchAll">全选</button><button id="batchApply">应用当前效果到所选图片</button><button id="batchExport">批量导出 ZIP</button><span id="batchProgress" role="status"></span>';
+document.querySelector('.filmstrip').before(batchBar);
+const batchShield=document.createElement('div');batchShield.id='batchShield';batchShield.hidden=true;batchShield.innerHTML='<span>正在处理所选图片，请稍候…</span>';document.body.append(batchShield);
+function syncBatch(){batchBar.hidden=!batchMode;$('batchCount').textContent='已选 '+batchSelection.size+' 张';$('batchApply').disabled=$('batchExport').disabled=!batchSelection.size||batchBusy;batchToggle.textContent=batchMode?'完成选择':'多选';}
+batchToggle.onclick=()=>{if(batchBusy)return;batchMode=!batchMode;if(!batchMode)batchSelection.clear();renderAlbum();syncBatch();};
+$('batchAll').onclick=()=>{album.forEach((_,i)=>batchSelection.add(i));renderAlbum();syncBatch();};
+async function runBatch(apply){
+ if(batchBusy||!ready||recordingBusy()||albumSwitch||!batchSelection.size)return;
+ endStroke();rememberImage();const origin=activeImage,source=snapshot(),files=[];let completed=0;
+ batchBusy=true;batchShield.hidden=false;syncBatch();document.dispatchEvent(new Event('studio:batch-start'));
+ try{
+ for(const index of [...batchSelection].sort((a,b)=>a-b)){
+ if(index>=album.length)continue;
+ await switchImage(index);if(activeImage!==index)throw new Error('图片未能载入：'+album[index].name);
+ if(apply){if(index!==origin){saveHistory();restore({scene:documentFromState(source.scene,fieldW,fieldH),settings:source.settings,strokeCount:source.strokeCount});hasEdits=true;rememberImage();}}
+ else{renderer.setScene(scene);const target=$('exportSize').value,scale=target==='original'?1:Math.min(1,Number(target)/Math.max(imageWidth,imageHeight));renderer.draw(Math.max(1,Math.round(imageWidth*scale)),Math.max(1,Math.round(imageHeight*scale)),false);const format=$('format').value,blob=await new Promise(r=>$('editor').toBlob(r,'image/'+format,.95));if(!blob)throw new Error('图片编码失败');files.push({name:String(index+1).padStart(2,'0')+'-'+currentName.replace(/[\\/:*?"<>|]/g,'_')+'.'+(format==='jpeg'?'jpg':'png'),data:new Uint8Array(await blob.arrayBuffer())});}
+ completed++;$('batchProgress').textContent=completed+' / '+batchSelection.size;batchShield.querySelector('span').textContent=(apply?'应用效果':'导出图片')+' · '+completed+' / '+batchSelection.size;
+ }
+ if(!apply){const url=URL.createObjectURL(zipFiles(files)),a=document.createElement('a');a.href=url;a.download='liquid-studio-images.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+ toast(apply?'已应用到所选图片；每张图片均可撤销。':'已打包 '+files.length+' 张图片。');
+ }catch(error){console.error(error);toast('已处理 '+completed+' 张，未完成：'+error.message);}
+ finally{await switchImage(origin);batchBusy=false;batchShield.hidden=true;dirty=true;requestRender();renderAlbum();syncBatch();}
+}
+$('batchApply').onclick=()=>runBatch(true);$('batchExport').onclick=()=>runBatch(false);
+
+document.addEventListener('keydown',e=>{if(batchBusy){e.preventDefault();e.stopImmediatePropagation();}},true);
+$('batchApply').title='替换所选图片的涂抹、玻璃与调色；笔触按图片比例适配，每张均可撤销';
+$('batchExport').title='按右侧图片格式和尺寸导出，打包为一个 ZIP';
