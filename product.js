@@ -1,0 +1,3 @@
+// Presentation only: retain engine controls and their existing event handlers.
+window.addEventListener('DOMContentLoaded',()=>{const sidebar=document.querySelector('#materialSidebar'),rail=document.querySelector('.rail');sidebar.prepend(rail);document.querySelector('.statusbar>span').textContent='薄荷像素社 · 本地功能整合版';document.title='涂抹 · 薄荷像素社 / 功能整合版';document.querySelector('#openEffects').textContent='预设收藏夹';document.querySelectorAll('.toolbuttons button').forEach(b=>b.addEventListener('click',()=>{if(!matchMedia('(prefers-reduced-motion:reduce)').matches)b.animate([{scale:'1 .94'},{scale:'1 1'}],{duration:160})}));});
+window.addEventListener('DOMContentLoaded',()=>{document.querySelector('#imageExportPanel .export-photo').hidden=false;});
