@@ -26,7 +26,7 @@
 
 ## 在线使用
 
-**[打开新版工作台 · 在线体验 →版本 2026.10.18.2](https://hajimi-tomato.github.io/liquid-studio-mint/studio-20261018-2.html)**
+**[打开新版工作台 · 在线体验 →版本 2026.10.18.2](https://hajimi-tomato.github.io/liquid-studio-mint/studio-20261019-1.html)**
 
 页面左下角显示 `v2026.10.18.2`。本次使用独立版本入口，便于确认加载的版本。
 
