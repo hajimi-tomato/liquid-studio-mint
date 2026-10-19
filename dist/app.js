@@ -1,5 +1,5 @@
 import {zipFiles} from './zip.js';
-import {setupDraft} from './draft.js?v=20261011';
+import {setupDraft} from './draft.js?v=20261019-1';
 import {LOOKS,lookField} from './looks.js?v=20261011';
 import {aloeField,ALOE_SETTINGS} from './aloe-preset.js?v=20260928-3';
 import {textureHeight} from './brush-textures.js';
@@ -110,7 +110,8 @@ function applyAloePreset(){
  toast('已应用亚克力 · 芦荟胶。可在「效果」调整，或撤销恢复。');
 }
 let aloePreviewRenderer;
-function renderAloePreview(){renderLooks();try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(fieldW,fieldH),fieldW,fieldH);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
+new MutationObserver(()=>{if($('effectsDrawer').open)requestAnimationFrame(()=>renderAloePreview());}).observe($('effectsDrawer'),{attributes:true,attributeFilter:['open']});
+function renderAloePreview(){if(!$('effectsDrawer').open)return;renderLooks();try{const c=$('aloePreview');aloePreviewRenderer??=new LiquidRenderer(c);const scale=300/Math.max(imageWidth,imageHeight),w=Math.max(2,Math.round(imageWidth*scale)),h=Math.max(2,Math.round(imageHeight*scale));aloePreviewRenderer.setImage(originalSource);aloePreviewRenderer.setField(aloeField(fieldW,fieldH),fieldW,fieldH);aloePreviewRenderer.draw(w,h,false,{...ALOE_SETTINGS,glassColor:'clear',glassTexture:'smooth'});}catch(e){console.error(e);}}
 let previewRenderer;
 function previewPreset(name){
  if(!ready)return;
@@ -374,14 +375,14 @@ try{
  const previousButton=$('comparePrevious');previousButton.addEventListener('pointerdown',e=>{e.preventDefault();previousButton.setPointerCapture(e.pointerId);comparePrevious(true);});['pointerup','pointercancel','lostpointercapture','blur'].forEach(event=>previousButton.addEventListener(event,()=>comparePrevious(false)));previousButton.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();comparePrevious(true);}});previousButton.addEventListener('keyup',()=>comparePrevious(false));
  $('compare').addEventListener('pointerdown',e=>{e.preventDefault();$('compare').setPointerCapture(e.pointerId);compare(true);});$('compare').addEventListener('pointerup',()=>compare(false));$('compare').addEventListener('pointercancel',()=>compare(false));$('compare').addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();compare(true);}});$('compare').addEventListener('keyup',()=>compare(false));$('compare').addEventListener('blur',()=>compare(false));
  $('zoomIn').onclick=()=>changeZoom(zoom*1.25);$('zoomOut').onclick=()=>changeZoom(zoom/1.25);$('fit').onclick=()=>fitCanvas(true);$('export').onclick=exportImage;
- $('loadSample').onclick=()=>loadImage('assets/sample.png','示例照片',true);
+ $('loadSample').onclick=()=>loadImage('assets/sample.webp','示例照片',true);
  new ResizeObserver(()=>fitCanvas()).observe($('stage'));
 // Only real text entry owns the keyboard; sliders, selects and buttons keep the editor shortcuts.
 function typingTarget(el){return el?.isContentEditable||el?.tagName==='TEXTAREA'||(el?.tagName==='INPUT'&&!['range','checkbox','radio','button','file'].includes(el.type));}
  document.addEventListener('keydown',e=>{if(typingTarget(e.target))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}if(e.ctrlKey||e.metaKey||e.altKey)return;if(e.target.tagName==='SELECT')return;if(e.code==='Space'&&e.target===document.body){e.preventDefault();spaceDown=true;$('editor').style.cursor='grab';$('brushCursor').hidden=true;}if(e.key.toLowerCase()==='b')setTool('paint');if(e.key.toLowerCase()==='p')setTool('push');if(e.key.toLowerCase()==='e')setTool('erase');});
  document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('editor').style.cursor='none';}});window.addEventListener('blur',()=>{spaceDown=false;endStroke();pointers.clear();compare(false);});
  $('editor').addEventListener('webglcontextlost',e=>{e.preventDefault();ready=false;toast('图形加速已中断，请刷新页面重新打开照片。');});
- loadImage('assets/sample.png','示例照片',true).then(()=>setupDraft({capture:captureDraft,restore:restoreDraft,notify:toast}));
+ loadImage('assets/sample.webp','示例照片',true).then(()=>setupDraft({capture:captureDraft,restore:restoreDraft,notify:toast}));
  renderLibrary();
  import('./recording.js?v=20261013').then(({setupRecording})=>setupRecording({canvas:$('editor'),isReady:()=>ready&&!exporting,notify:toast,createAnimation,analyseImage})).catch(()=>toast('动画录制模块加载失败，请刷新重试。'));
 }catch(error){console.error(error);$('loading').innerHTML='<span>当前浏览器无法开启画布，请使用新版 Chrome 或 Edge。</span>';$('export').disabled=true;toast(error.message);}

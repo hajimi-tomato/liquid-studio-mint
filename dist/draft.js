@@ -10,5 +10,15 @@ export function setupDraft({capture,restore,notify}){
  document.addEventListener('pointerup',()=>{if(enabled&&!saving&&!pending&&capture()?.key===lastKey)dirty=false;});
  document.addEventListener('input',e=>{if(enabled&&e.target.matches('input[type=range]'))dirty=true;});
  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
- return new Promise(resolve=>{const req=indexedDB.open('liquid-studio-draft',1);req.onupgradeneeded=()=>req.result.createObjectStore('draft');req.onerror=()=>{badge.textContent='草稿不可用';resolve();};req.onsuccess=async()=>{db=req.result;try{const data=await transact('readonly',s=>s.get('workspace'));if(data?.items?.length){const dialog=document.createElement('dialog');dialog.className='draft-dialog';dialog.innerHTML='<h2>继续上次的创作？</h2><p>本机保存了 '+data.items.length+' 张图片及编辑效果。</p><div class="draft-actions"><button id="discardDraft">开始新作品</button><button id="restoreDraft" class="primary">恢复草稿</button></div>';document.body.append(dialog);dialog.addEventListener('cancel',e=>e.preventDefault());dialog.querySelector('#restoreDraft').onclick=async()=>{try{dialog.querySelectorAll('button').forEach(b=>b.disabled=true);await restore(data);dialog.close();dialog.remove();enabled=true;lastKey=capture()?.key||'';badge.textContent='草稿已恢复 · 本机';resolve();}catch(e){dialog.querySelectorAll('button').forEach(b=>b.disabled=false);notify('草稿恢复失败，已保留原始草稿。');}};dialog.querySelector('#discardDraft').onclick=async()=>{await transact('readwrite',s=>s.delete('workspace'));dialog.close();dialog.remove();enabled=true;lastKey=capture()?.key||'';resolve();};dialog.showModal();}else{enabled=true;lastKey=capture()?.key||'';resolve();}}catch(e){badge.textContent='草稿读取失败';resolve();}};});
+ return new Promise(resolve=>{const req=indexedDB.open('liquid-studio-draft',1);req.onupgradeneeded=()=>req.result.createObjectStore('draft');req.onerror=()=>{badge.textContent='草稿不可用';resolve();};req.onsuccess=async()=>{db=req.result;try{const data=await transact('readonly',s=>s.get('workspace'));if(data?.items?.length){
+ await transact('readwrite',s=>s.put(data,'recovery'));
+ }const recovery=await transact('readonly',s=>s.get('recovery'));
+ if(recovery?.items?.length){
+ const row=document.createElement('div');row.className='draft-recovery';
+ row.innerHTML='<p>本机保留了上次创作，可随时恢复。</p><button id="restoreDraft">恢复上次创作</button><button id="discardDraft">删除旧草稿</button>';
+ document.querySelector('#presetDialog').append(row);
+ row.querySelector('#restoreDraft').onclick=async()=>{try{row.querySelectorAll('button').forEach(b=>b.disabled=true);await restore(recovery);lastKey=capture()?.key||'';dirty=true;await save();document.querySelector('#presetDialog').close();notify('已恢复上次创作');}catch(e){notify('草稿恢复失败，已保留原始草稿。');}finally{row.querySelectorAll('button').forEach(b=>b.disabled=false);}};
+ row.querySelector('#discardDraft').onclick=async()=>{await transact('readwrite',s=>{s.delete('workspace');return s.delete('recovery');});row.remove();};
+ enabled=true;lastKey=capture()?.key||'';resolve();
+}else{enabled=true;lastKey=capture()?.key||'';resolve();}}catch(e){badge.textContent='草稿读取失败';resolve();}};});
 }
