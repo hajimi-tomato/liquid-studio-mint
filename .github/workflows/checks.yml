@@ -44,6 +44,5 @@ jobs:
           path: |
             test-results/
             playwright-report/
-            e2e/output/
           if-no-files-found: ignore
           retention-days: 7
