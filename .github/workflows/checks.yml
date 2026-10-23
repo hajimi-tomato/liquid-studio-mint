@@ -17,10 +17,10 @@ concurrency:
 jobs:
   verify:
     name: Docs, unit and browser tests
-    runs-on: ubuntu-latest
+    runs-on: windows-2025
     timeout-minutes: 15
     env:
-      PLAYWRIGHT_CHANNEL: chromium
+      PLAYWRIGHT_CHANNEL: msedge
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -35,7 +35,6 @@ jobs:
       - run: npm ci
       - run: npm run check:docs
       - run: npm test
-      - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --workers=2
       - name: Save browser test diagnostics
         if: failure()

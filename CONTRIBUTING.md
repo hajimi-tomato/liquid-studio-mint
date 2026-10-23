@@ -36,7 +36,7 @@ $env:PLAYWRIGHT_CHANNEL = 'chromium'
 npm run test:e2e
 ```
 
-GitHub Actions 安装 Chromium 并运行同一组测试。文档检查验证仓库内相对链接、图片引用和静态入口资源，不负责判断所有外部网站是否在线。
+GitHub Actions 使用 Windows 2025 运行器预装的 Microsoft Edge，运行同一组测试。文档检查验证仓库内相对链接、图片引用和静态入口资源，不负责判断所有外部网站是否在线。
 
 ## 修改边界
 
