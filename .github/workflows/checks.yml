@@ -35,7 +35,7 @@ jobs:
       - run: npm ci
       - run: npm run check:docs
       - run: npm test
-      - run: npm run test:e2e -- --workers=2
+      - run: npm run test:e2e -- --workers=1
       - name: Save browser test diagnostics
         if: failure()
         uses: actions/upload-artifact@v7.0.2
