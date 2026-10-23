@@ -1,0 +1,42 @@
+name: Bug 报告
+description: 报告可以复现的功能或界面问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: 请优先使用内置示例图片复现，避免上传私人照片。
+  - type: input
+    id: version
+    attributes:
+      label: 版本与入口
+      description: 页面状态栏版本，以及使用的网址或本地版本。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 设备与浏览器
+      placeholder: 例如 iPhone / Safari，或 Windows / Edge；请说明是否为微信内置浏览器。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开示例图片
+        2. 选择……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图、屏幕尺寸与控制台信息
+      description: 可附脱敏截图；手机请说明横屏或竖屏。

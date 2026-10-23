@@ -1,0 +1,50 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Docs, unit and browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run check:docs
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=2
+      - name: Save browser test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: browser-test-diagnostics
+          path: |
+            test-results/
+            playwright-report/
+            e2e/output/
+          if-no-files-found: ignore
+          retention-days: 7

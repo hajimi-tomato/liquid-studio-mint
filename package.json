@@ -1,13 +1,25 @@
 {
   "name": "liquid-studio-mint",
   "private": true,
+  "description": "Local-first WebGL photo editor with liquid brush layers, glass effects and image/animation export.",
   "type": "module",
   "scripts": {
+    "dev": "python -m http.server 8000 --bind 127.0.0.1 --directory dist",
+    "check:docs": "node scripts/check-docs.mjs",
+    "docs:screenshots": "node scripts/capture-screenshots.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hajimi-tomato/liquid-studio-mint.git"
+  },
+  "homepage": "https://hajimi-tomato.github.io/liquid-studio-mint/",
+  "bugs": {
+    "url": "https://github.com/hajimi-tomato/liquid-studio-mint/issues"
   }
 }
