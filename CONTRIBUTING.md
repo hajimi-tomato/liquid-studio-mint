@@ -36,7 +36,7 @@ $env:PLAYWRIGHT_CHANNEL = 'chromium'
 npm run test:e2e
 ```
 
-GitHub Actions 使用 Windows 2025 运行器预装的 Microsoft Edge，运行同一组测试。文档检查验证仓库内相对链接、图片引用和静态入口资源，不负责判断所有外部网站是否在线。
+GitHub Actions 使用 Ubuntu 24.04 运行器预装的 Google Chrome，运行同一组测试。文档检查验证仓库内相对链接、图片引用和静态入口资源，不负责判断所有外部网站是否在线。
 
 CI 使用单个浏览器 worker，并为较慢的图形初始化延长等待时间；功能断言保持一致。云端运行器的耗时不作为真实手机或桌面设备的性能指标。
 

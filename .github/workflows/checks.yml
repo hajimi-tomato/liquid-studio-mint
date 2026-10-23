@@ -17,10 +17,10 @@ concurrency:
 jobs:
   verify:
     name: Docs, unit and browser tests
-    runs-on: windows-2025
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      PLAYWRIGHT_CHANNEL: msedge
+      PLAYWRIGHT_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v7.0.1
         with:
