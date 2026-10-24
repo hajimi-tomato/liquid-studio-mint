@@ -9,4 +9,5 @@
 - [部署说明](https://github.com/hajimi-tomato/liquid-studio-mint/blob/main/docs/DEPLOYMENT.md)
 - [更新日志](https://github.com/hajimi-tomato/liquid-studio-mint/blob/main/CHANGELOG.md)
 
-当前界面版本：`v2026.10.23.1`。这是部署产物目录，不包含主分支的测试工具与开发文档。
+当前界面版本：`v2026.10.24.1`。这是部署产物目录，不包含主分支的测试工具与开发文档。
+
