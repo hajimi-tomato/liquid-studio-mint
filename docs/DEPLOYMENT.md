@@ -14,7 +14,7 @@
 
 - 源码位于 `main`，正式静态网站从 `gh-pages` 分支根目录发布。
 - 稳定入口：https://hajimi-tomato.github.io/liquid-studio-mint/
-- 当前版本入口：https://hajimi-tomato.github.io/liquid-studio-mint/studio-20261023-1.html
+- 当前版本入口：https://hajimi-tomato.github.io/liquid-studio-mint/studio-20261024-1.html
 - 版本入口用于确认发布内容，不是冻结的历史快照；旧入口会跳转至当前版本。
 - 本仓库的检查工作流只验证代码与文档，不自动发布站点。
 
